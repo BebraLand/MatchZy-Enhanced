@@ -870,9 +870,7 @@ namespace MatchZy
             // inspired by cs2-noclip
             if (player.PlayerPawn.Value!.MoveType == MoveType_t.MOVETYPE_NOCLIP)
             {
-                player.PlayerPawn.Value.MoveType = MoveType_t.MOVETYPE_WALK;
-                player.PlayerPawn.Value.ActualMoveType = MoveType_t.MOVETYPE_WALK;
-                Utilities.SetStateChanged(player.PlayerPawn.Value, "CBaseEntity", "m_MoveType");
+                player.PlayerPawn.Value.ResetNoclipToWalk();
             }
             else
             {
