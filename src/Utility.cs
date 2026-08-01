@@ -2314,7 +2314,12 @@ namespace MatchZy
                 if (autoDelay > 0)
                 {
                     PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically in {ChatColors.Yellow}{autoDelay}s{ChatColors.Default}, or the tournament operator can start it now.");
-                    AddTimer(autoDelay, () => StartPendingOperatorNextMap("automatic fallback"));
+                    operatorNextMapAutoTimer?.Kill();
+                    operatorNextMapAutoTimer = AddTimer(autoDelay, () =>
+                    {
+                        operatorNextMapAutoTimer = null;
+                        StartPendingOperatorNextMap("automatic fallback");
+                    });
                 }
                 else
                 {
@@ -2492,6 +2497,8 @@ namespace MatchZy
 
             string nextMap = pendingOperatorNextMap;
             int nextMapIndex = pendingOperatorNextMapIndex;
+            operatorNextMapAutoTimer?.Kill();
+            operatorNextMapAutoTimer = null;
             awaitingOperatorNextMap = false;
             pendingOperatorNextMap = "";
             pendingOperatorNextMapIndex = -1;
