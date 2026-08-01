@@ -1185,10 +1185,16 @@ namespace MatchZy
                 });
             }
 
+            (int team1Score, int team2Score) = GetTeamsScore();
             var goingLiveEvent = new GoingLiveEvent
             {
                 MatchId = liveMatchId,
                 MapNumber = matchConfig.CurrentMapNumber,
+                MapName = Server.MapName,
+                Team1Score = team1Score,
+                Team2Score = team2Score,
+                Team1SeriesScore = matchzyTeam1.seriesScore,
+                Team2SeriesScore = matchzyTeam2.seriesScore,
             };
 
             Task.Run(async () =>

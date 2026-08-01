@@ -163,6 +163,21 @@ public class MatchZySeriesResultEvent : MatchZyMatchEvent
 
 public class GoingLiveEvent : MatchZyMapEvent
 {
+    [JsonPropertyName("map_name")]
+    public required string MapName { get; init; }
+
+    [JsonPropertyName("team1_score")]
+    public required int Team1Score { get; init; }
+
+    [JsonPropertyName("team2_score")]
+    public required int Team2Score { get; init; }
+
+    [JsonPropertyName("team1_series_score")]
+    public required int Team1SeriesScore { get; init; }
+
+    [JsonPropertyName("team2_series_score")]
+    public required int Team2SeriesScore { get; init; }
+
     public GoingLiveEvent() : base("going_live")
     {
     }
