@@ -44,9 +44,11 @@ public partial class MatchZy
 
                 if (isMatchSetup || matchModeOnly)
                 {
-                    // Allow admins to connect even if they are not part of the current
-                    // match configuration; they may spectate or administer the server.
-                    if (IsPlayerAdmin(player))
+                    // An admin who is not in either roster may connect to observe or
+                    // administer the server. A rostered admin must continue through
+                    // normal match setup so their configured team is enforced and
+                    // their connection is reported to MAT.
+                    if (IsPlayerAdmin(player) && GetPlayerTeam(player) == CsTeam.None)
                     {
                         return HookResult.Continue;
                     }
