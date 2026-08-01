@@ -595,6 +595,9 @@ public partial class MatchZy : BasePlugin
         {
             if (matchReportUploadScheduled)
             {
+                // A connect report is commonly built before CS2 assigns CT/T.
+                // Keep a trailing upload so player_team_assigned is never lost.
+                matchReportUploadPending = true;
                 return;
             }
             matchReportUploadScheduled = true;
@@ -639,9 +642,16 @@ public partial class MatchZy : BasePlugin
                 }
                 finally
                 {
+                    bool sendTrailingReport;
                     lock (matchReportUploadLock)
                     {
                         matchReportUploadScheduled = false;
+                        sendTrailingReport = matchReportUploadPending;
+                        matchReportUploadPending = false;
+                    }
+                    if (sendTrailingReport)
+                    {
+                        TriggerMatchReportUpload("coalesced_state_change");
                     }
                 }
             });

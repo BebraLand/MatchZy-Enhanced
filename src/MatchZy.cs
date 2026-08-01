@@ -124,6 +124,7 @@ namespace MatchZy
         private readonly Dictionary<ulong, long> playerConnectionTimes = new();
         private readonly object matchReportUploadLock = new();
         private bool matchReportUploadScheduled = false;
+        private bool matchReportUploadPending = false;
 
         // Admin Data
         private Dictionary<string, string> loadedAdmins = new Dictionary<string, string>();

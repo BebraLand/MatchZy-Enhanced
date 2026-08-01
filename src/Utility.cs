@@ -1201,6 +1201,9 @@ namespace MatchZy
             {
                 await SendEventAsync(goingLiveEvent);
             });
+            // Operator-started matches have no player .ready side effect to
+            // produce a report. Push an authoritative 0-0 snapshot now.
+            TriggerMatchReportUpload("going_live");
             string liveStatus = GetTournamentLiveStatusValue();
             UpdateTournamentStatus(liveStatus);
             CrashBreadcrumb("StartLive: exit");
