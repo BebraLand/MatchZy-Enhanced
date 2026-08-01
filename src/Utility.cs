@@ -1681,6 +1681,7 @@ namespace MatchZy
         private bool IsLiveRequirementSatisfied()
         {
             if (!readyAvailable || matchStarted) return false;
+            if (operatorReadyGate.Value) return false;
 
             int countOfReadyPlayers = playerReadyStatus.Count(kv => kv.Value == true);
 
@@ -2254,6 +2255,17 @@ namespace MatchZy
             matchConfig.CurrentMapNumber += 1;
             string nextMap = matchConfig.Maplist[matchConfig.CurrentMapNumber];
 
+            if (operatorManualNextMap.Value)
+            {
+                awaitingOperatorNextMap = true;
+                pendingOperatorNextMap = nextMap;
+                UpdateTournamentStatus("intermission");
+                string waitingMapDisplayName = nextMap.StartsWith("de_") ? nextMap.Substring(3) : nextMap;
+                PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} is waiting for the tournament operator.");
+                Log($"[HandleMatchEnd] Waiting for operator to start next map {nextMap}.");
+                return;
+            }
+
             // Calculate total delay before map change (restartDelay - 4 + 3 = restartDelay - 1)
             int totalDelay = restartDelay - 1;
 
@@ -2330,7 +2342,12 @@ namespace MatchZy
                 });
             }
 
-            AddTimer(restartDelay - 4, () =>
+            ScheduleNextMapTransition(nextMap, restartDelay - 4);
+        }
+
+        private void ScheduleNextMapTransition(string nextMap, float delay)
+        {
+            AddTimer(delay, () =>
             {
                 if (!isMatchSetup) return;
 

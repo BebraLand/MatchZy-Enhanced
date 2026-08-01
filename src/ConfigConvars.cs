@@ -78,6 +78,11 @@ namespace MatchZy
         public FakeConVar<int> autoReadyStartDelay = new("matchzy_autoready_start_delay", "Delay in seconds before match starts when auto-ready triggers (countdown). Default: 5", 5);
         public FakeConVar<float> autoReadyCheckDelay = new("matchzy_autoready_check_delay", "Delay in seconds after player joins team before checking auto-ready status. Default: 0.3", 0.3f);
         public FakeConVar<float> autoReadyPlayerReadyDelay = new("matchzy_autoready_ready_delay", "Delay in seconds before auto-ready simulates a player typing .ready once teams are eligible. Default: 2", 2.0f);
+
+        // Tournament operator controls. Disabled by default so standard MatchZy
+        // ready-up and series transitions remain unchanged for normal matches.
+        public FakeConVar<bool> operatorReadyGate = new("matchzy_operator_ready_gate", "When enabled, player .ready and auto-ready cannot start a match; an admin must use css_start. Default: false", false);
+        public FakeConVar<bool> operatorManualNextMap = new("matchzy_operator_manual_next_map", "When enabled, a multi-map series waits after each non-final map until an admin uses css_nextmap. Default: false", false);
         
         // Auto-Ready Simulation (testing helper)
         // When enabled, MatchZy will spawn two bots (1 CT, 1 T) during the ready/warmup phase

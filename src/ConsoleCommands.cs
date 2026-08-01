@@ -66,6 +66,11 @@ namespace MatchZy
         {
             if (player == null) return;
             Log($"[!ready command] Sent by: {player.UserId} readyAvailable: {readyAvailable} matchStarted: {matchStarted}");
+            if (operatorReadyGate.Value && readyAvailable && !matchStarted)
+            {
+                PrintToPlayerChat(player, "Match start is controlled by the tournament operator.");
+                return;
+            }
             if (readyAvailable && !matchStarted)
             {
                 if (player.UserId.HasValue)
@@ -102,6 +107,29 @@ namespace MatchZy
                     HandleClanTags();
                 }
             }
+        }
+
+        [ConsoleCommand("css_nextmap", "Loads the next map during an operator-controlled intermission")]
+        [ConsoleCommand("css_startnextmap", "Loads the next map during an operator-controlled intermission")]
+        public void OnStartNextMapCommand(CCSPlayerController? player, CommandInfo? command)
+        {
+            if (!IsPlayerAdmin(player, "css_nextmap", "@css/config"))
+            {
+                SendPlayerNotAdminMessage(player);
+                return;
+            }
+
+            if (!awaitingOperatorNextMap || string.IsNullOrWhiteSpace(pendingOperatorNextMap))
+            {
+                ReplyToUserCommand(player, "There is no next map waiting for operator approval.");
+                return;
+            }
+
+            string nextMap = pendingOperatorNextMap;
+            awaitingOperatorNextMap = false;
+            pendingOperatorNextMap = "";
+            PrintToAllChat($"{ChatColors.Green}Tournament operator is loading the next map: {nextMap}.{ChatColors.Default}");
+            ScheduleNextMapTransition(nextMap, 0);
         }
 
         [ConsoleCommand("css_unready", "Marks the player unready")]

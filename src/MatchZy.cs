@@ -86,6 +86,8 @@ namespace MatchZy
         private string? simulationTargetMap = null;
 
         public bool mapReloadRequired = false;
+        public bool awaitingOperatorNextMap = false;
+        public string pendingOperatorNextMap = "";
 
         // Pause Data
         public bool isPaused = false;

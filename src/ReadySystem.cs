@@ -122,9 +122,9 @@ public partial class MatchZy
     public void CheckAndAutoReadyPlayers()
     {
         // Skip if auto-ready is disabled, ready system not available, or match started
-        if (!autoReadyEnabled.Value || !readyAvailable || matchStarted)
+        if (!autoReadyEnabled.Value || operatorReadyGate.Value || !readyAvailable || matchStarted)
         {
-            Log($"[CheckAndAutoReadyPlayers] Skipping - autoReadyEnabled={autoReadyEnabled.Value}, readyAvailable={readyAvailable}, matchStarted={matchStarted}");
+            Log($"[CheckAndAutoReadyPlayers] Skipping - autoReadyEnabled={autoReadyEnabled.Value}, operatorReadyGate={operatorReadyGate.Value}, readyAvailable={readyAvailable}, matchStarted={matchStarted}");
             return;
         }
 

@@ -37,6 +37,7 @@ public record MatchReportMatch
     public string PauseTeamSlot { get; init; } = "";
     public MatchReportReadyState Ready { get; init; } = new();
     public int ConnectedPlayers { get; init; }
+    public bool AwaitingOperatorNextMap { get; init; }
 }
 
 public record MatchReportMap
@@ -246,6 +247,7 @@ public partial class MatchZy : BasePlugin
                 PauseTeamSlot = pauseTeamSlot,
                 Ready = readyState,
                 ConnectedPlayers = connections.Count,
+                AwaitingOperatorNextMap = awaitingOperatorNextMap,
                 Simulated = isSimulationMode
         };
 
