@@ -514,7 +514,10 @@ namespace MatchZy
 
         private void SendUnreadyPlayersMessage()
         {
-            if (!isWarmup || matchStarted) return;
+            // Tournament operator mode deliberately disables player-driven
+            // readiness. Do not tell players to type .ready when that command
+            // cannot start the match; the operator starts it with css_start.
+            if (!isWarmup || matchStarted || operatorReadyGate.Value) return;
             List<string> unreadyPlayers = new();
 
             foreach (var kvp in playerData)
