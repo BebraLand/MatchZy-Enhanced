@@ -2745,13 +2745,26 @@ namespace MatchZy
                     bool swapRequired = IsTeamSwapRequired();
 
                     // If isRoundRestoring is true, sides will be swapped from round restore if required!
-                    if (swapRequired && !isRoundRestoring)
+                    bool sidesSwapped = swapRequired && !isRoundRestoring;
+                    if (sidesSwapped)
                     {
                         SwapSidesInTeamData(false);
                     }
 
                     isRoundRestoring = false;
-                    TriggerMatchReportUpload("round_end");
+                    if (sidesSwapped)
+                    {
+                        // CS2 applies the physical halftime/OT side swap after this
+                        // round_end callback. A report built now would combine the
+                        // new logical mapping with old CT/T scoreboard values. The
+                        // round_end webhook above already carries the correct score;
+                        // wait briefly before publishing the authoritative snapshot.
+                        AddTimer(1.0f, () => TriggerMatchReportUpload("post_side_swap"));
+                    }
+                    else
+                    {
+                        TriggerMatchReportUpload("round_end");
+                    }
                 }
             }
             catch (Exception e)

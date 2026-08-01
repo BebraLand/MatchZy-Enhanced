@@ -823,6 +823,12 @@ namespace MatchZy
             //     (matchzyTeam2, matchzyTeam1) = (matchzyTeam1, matchzyTeam2);
             // }
 
+            // CS2 has not physically moved players/scoreboard sides yet when this
+            // method runs from round_end. Capture logical roster scores before we
+            // swap our CT/T mapping, otherwise a halftime report reads the old
+            // CT/T totals through the new mapping and temporarily inverts teams.
+            (int preSwapTeam1Score, int preSwapTeam2Score) = GetTeamsScore();
+
             (teamSides[matchzyTeam1], teamSides[matchzyTeam2]) = (teamSides[matchzyTeam2], teamSides[matchzyTeam1]);
             (reverseTeamSides["CT"], reverseTeamSides["TERRORIST"]) = (reverseTeamSides["TERRORIST"], reverseTeamSides["CT"]);
 
@@ -854,13 +860,12 @@ namespace MatchZy
                 {
                     // This is halftime
                     Log($"[SwapSidesInTeamData] Halftime detected, sending halftime_started event");
-                    (int t1score, int t2score) = GetTeamsScore();
                     var halftimeStartedEvent = new MatchZyHalftimeStartedEvent
                     {
                         MatchId = liveMatchId,
                         MapNumber = matchConfig.CurrentMapNumber,
-                        Team1Score = t1score,
-                        Team2Score = t2score
+                        Team1Score = preSwapTeam1Score,
+                        Team2Score = preSwapTeam2Score
                     };
 
                     Task.Run(async () =>
