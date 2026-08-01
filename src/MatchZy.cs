@@ -443,6 +443,17 @@ namespace MatchZy
                     }
                 }
 
+                // A CS2 player_connect event fires before the player has joined CT/T.
+                // At that instant MAT cannot map the player to team1/team2 and correctly
+                // ignores the event. Upload a fresh authoritative connection snapshot once
+                // CS2 assigns the player to their match side, without waiting for .ready.
+                // This keeps tournament attendance based on real connections, not readiness.
+                bool joinedMatchSide = @event.Team == (int)CsTeam.CounterTerrorist || @event.Team == (int)CsTeam.Terrorist;
+                if (isMatchSetup && joinedMatchSide)
+                {
+                    TriggerMatchReportUpload("player_team_assigned");
+                }
+
                 return HookResult.Continue;
             });
 
