@@ -557,6 +557,13 @@ namespace MatchZy
                         return;
                     }
 
+                    // A map transition can change team1/team2's CT/T sides.
+                    // Re-apply the current map mapping after player controllers are
+                    // available, so connected roster players do not remain on the
+                    // previous map's side until they manually switch teams.
+                    SetMapSides();
+                    UpdatePlayersMap();
+
                     if (isWarmup)
                     {
                         StartWarmup();
