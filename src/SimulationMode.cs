@@ -252,7 +252,7 @@ public partial class MatchZy
             {
                 playerData[userId] = bot;
 
-                if (readyAvailable && !matchStarted && !operatorReadyGate.Value)
+                if (readyAvailable && !matchStarted)
                 {
                     playerReadyStatus[userId] = false;
                 }
@@ -295,7 +295,7 @@ public partial class MatchZy
                 });
 
                 // Schedule the ready event after a delay to simulate human behavior
-                if (readyAvailable && !matchStarted && !operatorReadyGate.Value)
+                if (readyAvailable && !matchStarted)
                 {
                     if (!playerReadyStatus.ContainsKey(userId))
                     {
@@ -335,7 +335,7 @@ public partial class MatchZy
 
         // All simulation bots have been mapped and marked as ready.
         // Now ensure team overrides are set and final ready checks are performed.
-        if (readyAvailable && !matchStarted && isMatchSetup && !operatorReadyGate.Value)
+        if (readyAvailable && !matchStarted && isMatchSetup)
         {
             Log("[SimulationMode] All simulation bots mapped and ready. Setting team overrides and checking match start conditions.");
             
@@ -352,14 +352,6 @@ public partial class MatchZy
     /// </summary>
     private void StartSimulationReadyFlow()
     {
-        // Simulation still supplies real bots, but operator mode owns the transition
-        // from warmup to live through css_start / MAT Go Live.
-        if (operatorReadyGate.Value)
-        {
-            Log("[SimulationMode] Operator ready gate enabled; leaving simulation bots in warmup for css_start.");
-            return;
-        }
-
         if (!isSimulationMode)
         {
             return;
