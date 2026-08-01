@@ -88,6 +88,8 @@ namespace MatchZy
         public bool mapReloadRequired = false;
         public bool awaitingOperatorNextMap = false;
         public string pendingOperatorNextMap = "";
+        public int pendingOperatorNextMapIndex = -1;
+        private int operatorIntermissionOriginalRestartDelay = -1;
 
         // Pause Data
         public bool isPaused = false;

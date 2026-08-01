@@ -126,10 +126,8 @@ namespace MatchZy
             }
 
             string nextMap = pendingOperatorNextMap;
-            awaitingOperatorNextMap = false;
-            pendingOperatorNextMap = "";
             PrintToAllChat($"{ChatColors.Green}Tournament operator is loading the next map: {nextMap}.{ChatColors.Default}");
-            ScheduleNextMapTransition(nextMap, 0);
+            StartPendingOperatorNextMap("operator command");
         }
 
         [ConsoleCommand("css_unready", "Marks the player unready")]

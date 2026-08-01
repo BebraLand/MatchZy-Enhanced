@@ -1161,6 +1161,20 @@ namespace MatchZy
             // This is to reload the map once it is over so that all flags are reset accordingly
             Server.ExecuteCommand("mp_match_end_restart true");
 
+            // CS2 schedules its native post-match restart as soon as a map ends.
+            // Keep that deadline behind the operator fallback timer so MatchZy can
+            // load the selected next map first instead of CS2 resetting the just-
+            // finished map in place.
+            if (operatorManualNextMap.Value && operatorIntermissionOriginalRestartDelay < 0)
+            {
+                var restartDelayCvar = ConVar.Find("mp_match_restart_delay")!;
+                operatorIntermissionOriginalRestartDelay = restartDelayCvar.GetPrimitiveValue<int>();
+                int autoDelay = operatorNextMapAutoDelay.Value;
+                int nativeRestartGuard = autoDelay > 0 ? Math.Max(autoDelay + 10, 30) : 3600;
+                restartDelayCvar.SetValue(nativeRestartGuard);
+                Log($"[StartLive] Delayed native CS2 restart to {nativeRestartGuard}s for operator-controlled next-map flow.");
+            }
+
             // Professional LIVE announcement + short core command help for players
             PrintToAllChat($"{ChatColors.Lime}MATCH LIVE{ChatColors.Default} — {ChatColors.Green}{matchzyTeam1.teamName}{ChatColors.Default} vs {ChatColors.Green}{matchzyTeam2.teamName}{ChatColors.Default}. Good luck & have fun!");
             
@@ -2147,6 +2161,14 @@ namespace MatchZy
             // This ensures that the mp_match_restart_delay is not shorter than what is required for the GOTV recording to finish.
             // Ref: Get5
             int restartDelay = ConVar.Find("mp_match_restart_delay")!.GetPrimitiveValue<int>();
+            if (operatorIntermissionOriginalRestartDelay >= 0)
+            {
+                // The larger value is only a guard for the native CS2 restart.
+                // Demo and final-series cleanup retain the match-configured delay.
+                restartDelay = operatorIntermissionOriginalRestartDelay;
+                ConVar.Find("mp_match_restart_delay")!.SetValue(restartDelay);
+                operatorIntermissionOriginalRestartDelay = -1;
+            }
             int tvDelay = GetTvDelay();
             int tvFlushDelay;
             bool hasUploadEndpoint = !string.IsNullOrEmpty(demoUploadURL);
@@ -2276,19 +2298,34 @@ namespace MatchZy
             {
                 Server.PrintToChatAll($"{chatPrefix} The series is tied at {ChatColors.Green}{matchzyTeam1.seriesScore}-{matchzyTeam2.seriesScore}{ChatColors.Default}");
             }
-            matchConfig.CurrentMapNumber += 1;
-            string nextMap = matchConfig.Maplist[matchConfig.CurrentMapNumber];
+            int nextMapIndex = matchConfig.CurrentMapNumber + 1;
+            string nextMap = matchConfig.Maplist[nextMapIndex];
 
             if (operatorManualNextMap.Value)
             {
                 awaitingOperatorNextMap = true;
                 pendingOperatorNextMap = nextMap;
-                UpdateTournamentStatus("intermission");
+                pendingOperatorNextMapIndex = nextMapIndex;
+                int autoDelay = operatorNextMapAutoDelay.Value;
+                int nativeRestartGuard = autoDelay > 0 ? Math.Max(autoDelay + 10, 30) : 3600;
+                operatorIntermissionOriginalRestartDelay = ConVar.Find("mp_match_restart_delay")!.GetPrimitiveValue<int>();
+                ConVar.Find("mp_match_restart_delay")!.SetValue(nativeRestartGuard);
                 string waitingMapDisplayName = nextMap.StartsWith("de_") ? nextMap.Substring(3) : nextMap;
-                PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} is waiting for the tournament operator.");
-                Log($"[HandleMatchEnd] Waiting for operator to start next map {nextMap}.");
+                if (autoDelay > 0)
+                {
+                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically in {ChatColors.Yellow}{autoDelay}s{ChatColors.Default}, or the tournament operator can start it now.");
+                    AddTimer(autoDelay, () => StartPendingOperatorNextMap("automatic fallback"));
+                }
+                else
+                {
+                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} is waiting for the tournament operator.");
+                }
+                TriggerMatchReportUpload("operator_intermission");
+                Log($"[HandleMatchEnd] Waiting for operator to start next map {nextMap}; automatic fallback: {autoDelay}s.");
                 return;
             }
+
+            matchConfig.CurrentMapNumber = nextMapIndex;
 
             // Calculate total delay before map change (restartDelay - 4 + 3 = restartDelay - 1)
             int totalDelay = restartDelay - 1;
@@ -2444,6 +2481,38 @@ namespace MatchZy
                 ClearAutoReadySimulationState();
                 ScheduleAutoReadySimulationFlowIfNeeded(2.0f);
             });
+        }
+
+        private void StartPendingOperatorNextMap(string trigger)
+        {
+            if (!awaitingOperatorNextMap || string.IsNullOrWhiteSpace(pendingOperatorNextMap))
+            {
+                return;
+            }
+
+            string nextMap = pendingOperatorNextMap;
+            int nextMapIndex = pendingOperatorNextMapIndex;
+            awaitingOperatorNextMap = false;
+            pendingOperatorNextMap = "";
+            pendingOperatorNextMapIndex = -1;
+
+            if (nextMapIndex >= 0)
+            {
+                matchConfig.CurrentMapNumber = nextMapIndex;
+            }
+            else
+            {
+                matchConfig.CurrentMapNumber += 1;
+            }
+
+            if (operatorIntermissionOriginalRestartDelay >= 0)
+            {
+                ConVar.Find("mp_match_restart_delay")!.SetValue(operatorIntermissionOriginalRestartDelay);
+                operatorIntermissionOriginalRestartDelay = -1;
+            }
+
+            Log($"[OperatorNextMap] Starting {nextMap} via {trigger}.");
+            ScheduleNextMapTransition(nextMap, 0);
         }
 
         private void ChangeMap(string mapName, float delay)

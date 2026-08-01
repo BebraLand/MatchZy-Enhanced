@@ -150,6 +150,8 @@ namespace MatchZy
         public FakeConVar<string> tournamentNextMatch = new("matchzy_tournament_next_match", "Next match slug/identifier queued for this server", "");
         public FakeConVar<string> tournamentGoLiveStatus = new("matchzy_tournament_go_live_status", "Status string published when match goes live. Always uses playing for API compatibility.", "playing");
 
+        public FakeConVar<int> operatorNextMapAutoDelay = new("matchzy_operator_next_map_auto_delay", "Seconds to wait before automatically loading the next map during an operator-controlled intermission. The next map remains in warmup until css_start. Set to 0 to require an explicit css_nextmap. Default: 120", 120);
+
         // Match report upload
         public FakeConVar<string> matchReportEndpoint = new("matchzy_report_endpoint", "HTTP endpoint for match report uploads (https://host/api/events/report)", "");
         public FakeConVar<string> matchReportServerId = new("matchzy_report_server_id", "Server identifier to send with match report uploads", "");
