@@ -43,4 +43,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SKIP_DISCORD_WEBHOOK: "1"
         run: echo "y" | bash ./release.sh "${{ github.event.inputs.bump_type }}"

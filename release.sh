@@ -219,11 +219,8 @@ preflight_auth() {
 preflight_release_config() {
     # Release-script configuration preflight.
     #
-    # By default we require Discord webhook configuration so releases always
-    # get announced (avoids accidentally forgetting it).
-    #
-    # To explicitly skip Discord announcements, set:
-    #   SKIP_DISCORD_WEBHOOK=1
+    # Discord announcements are optional. A release must still build and
+    # publish successfully when no webhook is configured.
 
     if [ "${SKIP_DISCORD_WEBHOOK:-}" = "1" ] || [ "${SKIP_DISCORD_WEBHOOK:-}" = "true" ]; then
         echo -e "${YELLOW}⚠️  SKIP_DISCORD_WEBHOOK is set; Discord notification will be skipped.${NC}"
@@ -231,26 +228,18 @@ preflight_release_config() {
     fi
 
     if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
-        echo -e "${RED}❌ DISCORD_WEBHOOK_URL is required for releases but is not set.${NC}"
-        echo -e "${YELLOW}Fix one of these:${NC}"
-        echo "  - Create a .env file in this repo (see .env.example), or"
-        echo "  - Export DISCORD_WEBHOOK_URL in your shell"
-        echo -e "${YELLOW}Or to explicitly skip Discord notification:${NC}"
-        echo "  SKIP_DISCORD_WEBHOOK=1 ./release.sh ${BUMP_TYPE:-}"
-        exit 1
+        echo -e "${YELLOW}⚠️  DISCORD_WEBHOOK_URL is not set; Discord notification will be skipped.${NC}"
+        return 0
     fi
 
     if ! command -v curl >/dev/null 2>&1; then
-        echo -e "${RED}❌ Missing required command: curl (needed for Discord webhook).${NC}"
-        echo -e "${YELLOW}Install curl, then re-run (e.g. Debian/Ubuntu: sudo apt-get install -y curl).${NC}"
-        exit 1
+        echo -e "${YELLOW}⚠️  curl is not installed; Discord notification will be skipped.${NC}"
+        return 0
     fi
 
     if [ ! -f "./discord-webhook.sh" ]; then
-        echo -e "${RED}❌ discord-webhook.sh not found; cannot send Discord release notification.${NC}"
-        echo -e "${YELLOW}If you truly want to proceed without Discord notification:${NC}"
-        echo "  SKIP_DISCORD_WEBHOOK=1 ./release.sh ${BUMP_TYPE:-}"
-        exit 1
+        echo -e "${YELLOW}⚠️  discord-webhook.sh not found; Discord notification will be skipped.${NC}"
+        return 0
     fi
 }
 
@@ -460,8 +449,8 @@ gh release create "v${VERSION}" \
     --draft=false \
     --latest
 
-# Send Discord webhook notification (required unless explicitly skipped)
-if [ "${SKIP_DISCORD_WEBHOOK:-}" = "1" ] || [ "${SKIP_DISCORD_WEBHOOK:-}" = "true" ]; then
+# Send Discord webhook notification when configured.
+if [ "${SKIP_DISCORD_WEBHOOK:-}" = "1" ] || [ "${SKIP_DISCORD_WEBHOOK:-}" = "true" ] || [ -z "${DISCORD_WEBHOOK_URL:-}" ] || [ ! -f "./discord-webhook.sh" ]; then
     echo -e "\n${YELLOW}⚠️  SKIP_DISCORD_WEBHOOK is set; skipping Discord release notification.${NC}"
 else
     echo -e "\n${BLUE}🔔 Sending Discord release notification...${NC}"
