@@ -1149,8 +1149,14 @@ namespace MatchZy
         private void StartLive()
         {
             CrashBreadcrumb("StartLive: enter");
+            PreserveSimulationBotsForLiveTransition();
             SetupLiveFlagsAndCfg();
             CrashBreadcrumb("StartLive: after SetupLiveFlagsAndCfg");
+            if (isSimulationMode)
+            {
+                // live.cfg may reapply bot policy after StartLive returns.
+                AddTimer(1.0f, PreserveSimulationBotsForLiveTransition);
+            }
             StartDemoRecording();
             CrashBreadcrumb("StartLive: after StartDemoRecording");
 

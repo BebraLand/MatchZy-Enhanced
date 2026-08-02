@@ -493,6 +493,25 @@ public partial class MatchZy
     }
 
     /// <summary>
+    /// Reassert the bot policy after the live cfg transition. CS2 can restore the
+    /// default bot policy while css_start executes, which otherwise removes the
+    /// synthetic roster exactly at Go Live.
+    /// </summary>
+    private void PreserveSimulationBotsForLiveTransition()
+    {
+        if (!isSimulationMode || simulationIdentityPool.Count == 0)
+        {
+            return;
+        }
+
+        int desiredBotCount = simulationIdentityPool.Count;
+        Log($"[SimulationMode] Preserving {desiredBotCount} bots across Go Live.");
+        Server.ExecuteCommand(
+            $"bot_join_after_player 0; mp_autokick 0; mp_autoteambalance 0; mp_limitteams 0; bot_quota_mode normal; bot_quota {desiredBotCount}"
+        );
+    }
+
+    /// <summary>
     /// Ensures that non-simulation, non-practice matches run with normal cheats/timescale
     /// settings. This is used as a safeguard at warmup/round boundaries so that any
     /// previous simulation or practice configuration does not leak into real matches.
