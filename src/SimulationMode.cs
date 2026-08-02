@@ -98,9 +98,14 @@ public partial class MatchZy
             return existing;
         }
 
+        // Prefer an identity whose configured team maps to the bot's actual CS side.
+        // This keeps the warmup roster coherent instead of assigning CT identities to
+        // bots that the engine accidentally spawned on T (or vice versa).
+        CsTeam actualTeam = (CsTeam)player.TeamNum;
         foreach (var identity in simulationIdentityPool)
         {
-            if (!assignedSimulationSteamIds.Contains(identity.ConfigSteamId))
+            if (!assignedSimulationSteamIds.Contains(identity.ConfigSteamId) &&
+                GetDesiredSimulationTeam(identity) == actualTeam)
             {
                 assignedSimulationSteamIds.Add(identity.ConfigSteamId);
                 simulationPlayersByUserId[userId] = identity;
@@ -114,8 +119,32 @@ public partial class MatchZy
             }
         }
 
+        // Fall back to any remaining identity so a transiently incorrect spawn side
+        // does not prevent the bot from entering the synthetic roster. The next
+        // explicit team restore pass will correct its in-game side.
+        foreach (var identity in simulationIdentityPool)
+        {
+            if (!assignedSimulationSteamIds.Contains(identity.ConfigSteamId))
+            {
+                assignedSimulationSteamIds.Add(identity.ConfigSteamId);
+                simulationPlayersByUserId[userId] = identity;
+                Log($"[SimulationMode] Assigned bot {player.PlayerName} (UserId {userId}) to fallback simulated player {identity.ConfigName} ({identity.ConfigSteamId}) on {identity.TeamSlot}");
+                ScheduleSimulationReadyFlowIfNeeded();
+                return identity;
+            }
+        }
+
         Log($"[SimulationMode] No available simulated player identity for bot {player.PlayerName} (UserId {userId})");
         return null;
+    }
+
+    private CsTeam GetDesiredSimulationTeam(SimulationPlayerIdentity identity)
+    {
+        string desiredSide = identity.TeamSlot == "team1"
+            ? (teamSides.TryGetValue(matchzyTeam1, out var team1Side) ? team1Side : "CT")
+            : (teamSides.TryGetValue(matchzyTeam2, out var team2Side) ? team2Side : "TERRORIST");
+
+        return desiredSide == "CT" ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
     }
 
     /// <summary>
@@ -145,10 +174,10 @@ public partial class MatchZy
 
         Log($"[SimulationMode] Spawning simulation bots (simulation mode active). identityPoolCount={simulationIdentityPool.Count}");
 
-        // For simulation we want exactly one bot per configured player. To avoid the
-        // engine auto-spawning *extra* bots, we drive bot creation purely by gradually
-        // increasing bot_quota from 0 -> desiredCount while setting bot_join_team for
-        // each step, instead of combining bot_quota with explicit bot_add_* calls.
+        // For simulation we want exactly one bot per configured player. Use explicit
+        // bot_add_ct/bot_add_t commands so each bot is created on the intended side.
+        // bot_join_team followed by bot_quota is asynchronous in CS2: the quota change
+        // can spawn the bot before bot_join_team is applied, putting every bot on T.
         int desiredBotCount = simulationIdentityPool.Count;
         if (desiredBotCount < 0) desiredBotCount = 0;
         Log($"[SimulationMode] Desired bot count for simulation = {desiredBotCount}");
@@ -162,21 +191,11 @@ public partial class MatchZy
         int index = 0;
         foreach (var identity in simulationIdentityPool)
         {
-            // Decide desired side based on team slot and current teamSides mapping.
-            string desiredSide = "T";
-            if (identity.TeamSlot == "team1")
-            {
-                desiredSide = teamSides.TryGetValue(matchzyTeam1, out var side) ? side : "CT";
-            }
-            else if (identity.TeamSlot == "team2")
-            {
-                desiredSide = teamSides.TryGetValue(matchzyTeam2, out var side) ? side : "TERRORIST";
-            }
+            CsTeam desiredTeam = GetDesiredSimulationTeam(identity);
 
-            // Quota value we want to reach when this bot is spawned.
-            int quotaForThisStep = index + 1;
             float delaySeconds = index * 1.0f;
-            var desiredSideCopy = desiredSide;
+            int spawnIndex = index;
+            var desiredTeamCopy = desiredTeam;
 
             // Spawn bots gradually so the server has time to settle between joins and any
             // external config executions. This also produces a more human-like join pattern.
@@ -188,23 +207,16 @@ public partial class MatchZy
                     return;
                 }
 
-                if (desiredSideCopy == "CT")
+                if (desiredTeamCopy == CsTeam.CounterTerrorist)
                 {
-                    Log($"[SimulationMode] Requesting next bot on CT (targetQuota={quotaForThisStep}).");
-                    Server.ExecuteCommand("bot_join_team CT");
+                    Log($"[SimulationMode] Adding next bot on CT (index={spawnIndex}).");
+                    Server.ExecuteCommand("bot_add_ct");
                 }
                 else
                 {
-                    Log($"[SimulationMode] Requesting next bot on T (targetQuota={quotaForThisStep}).");
-                    Server.ExecuteCommand("bot_join_team T");
+                    Log($"[SimulationMode] Adding next bot on T (index={spawnIndex}).");
+                    Server.ExecuteCommand("bot_add_t");
                 }
-
-                // Bump the quota up by one for this identity; the engine will spawn a new
-                // bot on the requested team. Because we only ever increase bot_quota from
-                // 0 -> desiredBotCount (never back down to 0), we avoid the previous issue
-                // where a late bot_quota 0 would kick all simulation bots.
-                Log($"[SimulationMode] Setting bot_quota to {quotaForThisStep}.");
-                Server.ExecuteCommand($"bot_quota {quotaForThisStep}");
             });
 
             index++;
