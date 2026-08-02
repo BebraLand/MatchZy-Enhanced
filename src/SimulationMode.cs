@@ -10,6 +10,7 @@ namespace MatchZy;
 // Internal identity for a simulated player: the "real" identity from the match JSON
 // that a given in-game bot is representing.
 internal record SimulationPlayerIdentity(string ConfigSteamId, string ConfigName, string TeamSlot);
+internal record SimulationBotTransitionIdentity(string ConfigSteamId, string ConfigName, string TeamSlot, CsTeam DesiredTeam);
 
 public partial class MatchZy
 {
@@ -31,6 +32,13 @@ public partial class MatchZy
     // MaybeStartSimulationFlow().
     private bool simulationFlowStarted = false;
 
+    // During css_start/live.cfg CS2 may disconnect and recreate bots. Keep the
+    // logical roster alive across that internal transition instead of treating it
+    // as a real player departure.
+    private readonly List<SimulationBotTransitionIdentity> simulationLiveTransitionSnapshot = new();
+    private bool simulationLiveTransitionActive = false;
+    private int simulationLiveTransitionAttempts = 0;
+
     private void ClearSimulationState()
     {
         simulationPlayersByUserId.Clear();
@@ -38,6 +46,9 @@ public partial class MatchZy
         assignedSimulationSteamIds.Clear();
         simulationReadyFlowScheduled = false;
         simulationFlowStarted = false;
+        simulationLiveTransitionSnapshot.Clear();
+        simulationLiveTransitionActive = false;
+        simulationLiveTransitionAttempts = 0;
         isSimulationMode = false;
     }
 
@@ -505,10 +516,75 @@ public partial class MatchZy
         }
 
         int desiredBotCount = simulationIdentityPool.Count;
-        Log($"[SimulationMode] Preserving {desiredBotCount} bots across Go Live.");
+        if (!simulationLiveTransitionActive)
+        {
+            simulationLiveTransitionSnapshot.Clear();
+            foreach (var identity in simulationIdentityPool)
+            {
+                string side = identity.TeamSlot == "team1"
+                    ? (teamSides.TryGetValue(matchzyTeam1, out var team1Side) ? team1Side : "CT")
+                    : (teamSides.TryGetValue(matchzyTeam2, out var team2Side) ? team2Side : "TERRORIST");
+                simulationLiveTransitionSnapshot.Add(new SimulationBotTransitionIdentity(
+                    identity.ConfigSteamId,
+                    identity.ConfigName,
+                    identity.TeamSlot,
+                    side == "CT" ? CsTeam.CounterTerrorist : CsTeam.Terrorist));
+            }
+            simulationPlayersByUserId.Clear();
+            assignedSimulationSteamIds.Clear();
+            simulationLiveTransitionActive = true;
+            simulationLiveTransitionAttempts = 0;
+        }
+
+        Log($"[SimulationMode] Preserving {desiredBotCount} bots across Go Live with {simulationLiveTransitionSnapshot.Count} side assignments.");
         Server.ExecuteCommand(
             $"bot_join_after_player 0; mp_autokick 0; mp_autoteambalance 0; mp_limitteams 0; bot_quota_mode normal; bot_quota {desiredBotCount}"
         );
+        AddTimer(1.5f, RestoreSimulationBotsAfterLiveTransition);
+    }
+
+    private void RestoreSimulationBotsAfterLiveTransition()
+    {
+        if (!isSimulationMode || !simulationLiveTransitionActive)
+        {
+            return;
+        }
+
+        var bots = new List<CCSPlayerController>();
+        foreach (var player in Utilities.FindAllEntitiesByDesignerName<CCSPlayerController>("cs_player_controller"))
+        {
+            if (player != null && player.IsValid && player.IsBot && !player.IsHLTV && player.UserId.HasValue)
+            {
+                bots.Add(player);
+            }
+        }
+
+        if (bots.Count < simulationLiveTransitionSnapshot.Count && simulationLiveTransitionAttempts++ < 8)
+        {
+            Log($"[SimulationMode] Waiting for Go Live bot recreation: {bots.Count}/{simulationLiveTransitionSnapshot.Count}.");
+            AddTimer(1.0f, RestoreSimulationBotsAfterLiveTransition);
+            return;
+        }
+
+        simulationPlayersByUserId.Clear();
+        assignedSimulationSteamIds.Clear();
+
+        for (int index = 0; index < simulationLiveTransitionSnapshot.Count && index < bots.Count; index++)
+        {
+            var bot = bots[index];
+            var identity = simulationLiveTransitionSnapshot[index];
+            SwitchPlayerTeam(bot, identity.DesiredTeam);
+            simulationPlayersByUserId[bot.UserId!.Value] = new SimulationPlayerIdentity(
+                identity.ConfigSteamId,
+                identity.ConfigName,
+                identity.TeamSlot);
+            assignedSimulationSteamIds.Add(identity.ConfigSteamId);
+            Log($"[SimulationMode] Restored bot {bot.PlayerName} UserId={bot.UserId} as {identity.ConfigName} on {identity.DesiredTeam}.");
+        }
+
+        simulationLiveTransitionActive = false;
+        simulationLiveTransitionAttempts = 0;
+        EnsureSimulationBotsMappedAndAnnounced();
     }
 
     /// <summary>

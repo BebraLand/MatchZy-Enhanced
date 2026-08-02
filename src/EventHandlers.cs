@@ -217,6 +217,15 @@ public partial class MatchZy
             lastGrenadesData.Remove(userId);
             nadeSpecificLastGrenadeData.Remove(userId);
 
+            // css_start/live.cfg may briefly disconnect and recreate simulation bots.
+            // This is an internal Go Live transition, not a logical player departure:
+            // preserve the snapshot until the replacement bots have been restored.
+            if (isSimulationMode && simulationLiveTransitionActive)
+            {
+                Log($"[EventPlayerDisconnect] Preserving simulation mapping for UserId {userId} during Go Live bot transition.");
+                return HookResult.Continue;
+            }
+
             // Send player_disconnect event
             if (!string.IsNullOrEmpty(matchConfig.RemoteLogURL) && isMatchSetup)
             {
