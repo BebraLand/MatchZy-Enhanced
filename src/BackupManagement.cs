@@ -410,10 +410,13 @@ namespace MatchZy
             }
         }
 
-        public void CreateMatchZyRoundDataBackup()
+        public string? CreateMatchZyRoundDataBackup(
+            string? uploadUrl = null,
+            string? uploadHeaderKey = null,
+            string? uploadHeaderValue = null)
         {
             Log($"[CreateMatchZyRoundDataBackup] isRoundRestoring: {isRoundRestoring} isMatchLive: {isMatchLive}");
-            if (!isMatchLive || isRoundRestoring) return;
+            if (!isMatchLive || isRoundRestoring) return null;
             try
             {
                 (int t1score, int t2score) = GetTeamsScore();
@@ -470,15 +473,80 @@ namespace MatchZy
 
                 File.WriteAllText(filePath, defaultJson);
 
-                Task.Run(async () => {
-                    await UploadFileAsync(filePath, backupUploadURL, backupUploadHeaderKey, backupUploadHeaderValue, liveMatchId, matchConfig.CurrentMapNumber, roundNumber);
-                });
+                string targetUrl = uploadUrl ?? backupUploadURL;
+                string targetHeaderKey = uploadHeaderKey ?? backupUploadHeaderKey;
+                string targetHeaderValue = uploadHeaderValue ?? backupUploadHeaderValue;
+                if (!string.IsNullOrWhiteSpace(targetUrl))
+                {
+                    Task.Run(async () =>
+                    {
+                        await UploadFileAsync(filePath, targetUrl, targetHeaderKey, targetHeaderValue, liveMatchId, matchConfig.CurrentMapNumber, roundNumber);
+                    });
+                }
+                return filePath;
 
             }
             catch (Exception e)
             {
                 Log($"[CreateMatchZyRoundDataBackup FATAL] Error creating the JSON file: {e.Message}");
+                return null;
             }
+        }
+
+        [ConsoleCommand("matchzy_live_reallocate_capture", "Capture and upload the current live round checkpoint for server migration")]
+        [CommandHelper(minArgs: 1, usage: "<upload_url> [header_name] [header_value]")]
+        public void OnLiveReallocateCaptureCommand(CCSPlayerController? player, CommandInfo command)
+        {
+            if (player != null) return;
+            if (!isMatchLive || liveMatchId <= 0)
+            {
+                ReplyToUserCommand(player, "Live reallocation is available only during a live match.");
+                return;
+            }
+
+            string uploadUrl = command.ArgByIndex(1).Trim().Trim('"');
+            if (!IsValidUrl(uploadUrl))
+            {
+                ReplyToUserCommand(player, "Invalid live reallocation upload URL.");
+                return;
+            }
+
+            string headerKey = command.ArgCount > 2 ? command.ArgByIndex(2).Trim().Trim('"') : "";
+            string headerValue = command.ArgCount > 3 ? command.ArgByIndex(3).Trim().Trim('"') : "";
+
+            // Freeze the live match before reading the round checkpoint. The native
+            // backup is the authoritative source for score/economy/spawn state.
+            ForcePauseMatch(null, null);
+            string? filePath = CreateMatchZyRoundDataBackup(uploadUrl, headerKey, headerValue);
+            if (filePath == null)
+            {
+                ReplyToUserCommand(player, "Unable to capture the live round checkpoint.");
+                return;
+            }
+
+            Log($"[LiveReallocate] Checkpoint upload started: {filePath}");
+            ReplyToUserCommand(player, "Live round checkpoint capture started.");
+        }
+
+        [ConsoleCommand("matchzy_live_reallocate_redirect", "Redirect current match players to another MatchZy server")]
+        [CommandHelper(minArgs: 1, usage: "<host:port>")]
+        public void OnLiveReallocateRedirectCommand(CCSPlayerController? player, CommandInfo command)
+        {
+            if (player != null) return;
+            string address = command.ArgByIndex(1).Trim().Trim('"');
+            if (!Regex.IsMatch(address, "^[A-Za-z0-9_.:\\-\\[\\]]+$"))
+            {
+                ReplyToUserCommand(player, "Invalid redirect address.");
+                return;
+            }
+
+            foreach (var matchPlayer in playerData.Values.Distinct())
+            {
+                if (!IsPlayerValid(matchPlayer) || matchPlayer.IsBot || matchPlayer.IsHLTV) continue;
+                matchPlayer.ExecuteClientCommand($"connect {address}");
+            }
+            Log($"[LiveReallocate] Redirected match players to {address}");
+            ReplyToUserCommand(player, $"Redirected match players to {address}.");
         }
 
         public List<string> GetBackups(string matchID)
