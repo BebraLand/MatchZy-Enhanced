@@ -3,6 +3,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.Utils;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -514,6 +515,8 @@ namespace MatchZy
             string headerKey = command.ArgCount > 2 ? command.ArgByIndex(2).Trim().Trim('"') : "";
             string headerValue = command.ArgCount > 3 ? command.ArgByIndex(3).Trim().Trim('"') : "";
 
+            PrintToAllChat($"{ChatColors.Yellow}Live server migration is starting. The match will be paused. A new server address will appear in chat shortly.{ChatColors.Default}");
+
             // Freeze the live match before reading the round checkpoint. The native
             // backup is the authoritative source for score/economy/spawn state.
             ForcePauseMatch(null, null);
@@ -528,7 +531,7 @@ namespace MatchZy
             ReplyToUserCommand(player, "Live round checkpoint capture started.");
         }
 
-        [ConsoleCommand("matchzy_live_reallocate_redirect", "Redirect current match players to another MatchZy server")]
+        [ConsoleCommand("matchzy_live_reallocate_redirect", "Announce the replacement MatchZy server")]
         [CommandHelper(minArgs: 1, usage: "<host:port>")]
         public void OnLiveReallocateRedirectCommand(CCSPlayerController? player, CommandInfo command)
         {
@@ -540,13 +543,30 @@ namespace MatchZy
                 return;
             }
 
-            foreach (var matchPlayer in playerData.Values.Distinct())
+            var matchPlayers = Utilities.GetPlayers()
+                .Where(matchPlayer => IsPlayerValid(matchPlayer) && !matchPlayer.IsBot && !matchPlayer.IsHLTV)
+                .ToList();
+
+            if (matchPlayers.Count == 0)
             {
-                if (!IsPlayerValid(matchPlayer) || matchPlayer.IsBot || matchPlayer.IsHLTV) continue;
-                matchPlayer.ExecuteClientCommand($"connect {address}");
+                ReplyToUserCommand(player, "No connected human players found for redirect.");
+                return;
             }
-            Log($"[LiveReallocate] Redirected match players to {address}");
-            ReplyToUserCommand(player, $"Redirected match players to {address}.");
+
+            PrintToAllChat($"{ChatColors.Yellow}The match is ready on a new server: {address}.{ChatColors.Default} Open the console and type: connect {address}");
+            foreach (var matchPlayer in matchPlayers)
+            {
+                try
+                {
+                    matchPlayer.PrintToCenterAlert($"New server ready\nconnect {address}");
+                }
+                catch (Exception e)
+                {
+                    Log($"[LiveReallocate] Failed to show reconnect address to {matchPlayer.PlayerName} ({matchPlayer.SteamID}): {e.Message}");
+                }
+            }
+            Log($"[LiveReallocate] Announced manual reconnect address {address} to {matchPlayers.Count} players");
+            ReplyToUserCommand(player, $"Announced manual reconnect address {address} to {matchPlayers.Count} players.");
         }
 
         public List<string> GetBackups(string matchID)
