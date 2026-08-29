@@ -2317,9 +2317,13 @@ namespace MatchZy
                 operatorIntermissionOriginalRestartDelay = ConVar.Find("mp_match_restart_delay")!.GetPrimitiveValue<int>();
                 ConVar.Find("mp_match_restart_delay")!.SetValue(nativeRestartGuard);
                 string waitingMapDisplayName = nextMap.StartsWith("de_") ? nextMap.Substring(3) : nextMap;
-                if (autoDelay > 0)
+                if (operatorAutoStartNextMapAfterDemo.Value)
                 {
-                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically in {ChatColors.Yellow}{autoDelay}s{ChatColors.Default}, or the tournament operator can start it now.");
+                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically after the demo upload. The tournament operator can start it manually after the upload.");
+                }
+                else if (autoDelay > 0)
+                {
+                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically in {ChatColors.Yellow}{autoDelay}s{ChatColors.Default}. After the demo upload, the tournament operator can start it earlier; waiting for the timer is not required.");
                     operatorNextMapAutoTimer?.Kill();
                     operatorNextMapAutoTimer = AddTimer(autoDelay, () =>
                     {

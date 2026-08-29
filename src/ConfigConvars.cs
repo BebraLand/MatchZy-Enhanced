@@ -83,6 +83,7 @@ namespace MatchZy
         // ready-up and series transitions remain unchanged for normal matches.
         public FakeConVar<bool> operatorReadyGate = new("matchzy_operator_ready_gate", "When enabled, player .ready and auto-ready cannot start a match; an admin must use css_start. Default: false", false);
         public FakeConVar<bool> operatorManualNextMap = new("matchzy_operator_manual_next_map", "When enabled, a multi-map series waits after each non-final map until an admin uses css_nextmap. Default: false", false);
+        public FakeConVar<bool> operatorAutoStartNextMapAfterDemo = new("matchzy_operator_auto_start_next_map_after_demo", "When enabled, MAT automatically starts the next map after its demo upload. The map remains in warmup until player .ready or an admin uses css_start. Default: false", false);
         
         // Auto-Ready Simulation (testing helper)
         // When enabled, MatchZy will spawn two bots (1 CT, 1 T) during the ready/warmup phase
