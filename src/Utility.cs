@@ -2319,11 +2319,11 @@ namespace MatchZy
                 string waitingMapDisplayName = nextMap.StartsWith("de_") ? nextMap.Substring(3) : nextMap;
                 if (operatorAutoStartNextMapAfterDemo.Value)
                 {
-                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically after the demo upload. The tournament operator can start it manually after the upload.");
+                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} will load automatically when the demo upload is complete. The operator can start the next map manually once the demo is ready.");
                 }
                 else if (autoDelay > 0)
                 {
-                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} loads automatically in {ChatColors.Yellow}{autoDelay}s{ChatColors.Default}. After the demo upload, the tournament operator can start it earlier; waiting for the timer is not required.");
+                    PrintToAllChat($"{ChatColors.Grey}Next map: {ChatColors.Green}{waitingMapDisplayName}{ChatColors.Default} will load automatically in {ChatColors.Yellow}{autoDelay}s{ChatColors.Default}. Once the demo is ready, the operator can start the next map earlier without waiting for the timer.");
                     operatorNextMapAutoTimer?.Kill();
                     operatorNextMapAutoTimer = AddTimer(autoDelay, () =>
                     {
