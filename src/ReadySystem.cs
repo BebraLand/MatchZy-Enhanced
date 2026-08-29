@@ -47,8 +47,18 @@ public partial class MatchZy
             return false;
         }
 
-        // Require full rosters (players_per_team) before the match can start.
-        if (playerCount < minPlayers)
+        // For configured matches, the roster in team1/team2 is authoritative.
+        // A manual 1v1 may keep players_per_team=5 as a legacy/default value,
+        // but it must still start once its two configured players are ready.
+        bool hasExplicitMatchRosters =
+            isMatchSetup &&
+            matchzyTeam1.teamPlayers is Newtonsoft.Json.Linq.JObject team1Players &&
+            team1Players.Properties().Any() &&
+            matchzyTeam2.teamPlayers is Newtonsoft.Json.Linq.JObject team2Players &&
+            team2Players.Properties().Any();
+
+        // Require full configured rosters for normal/unconfigured matches.
+        if (playerCount < minPlayers && !hasExplicitMatchRosters)
         {
             return false;
         }

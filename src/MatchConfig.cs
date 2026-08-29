@@ -25,6 +25,11 @@ namespace MatchZy
         [JsonPropertyName("skip_veto")]
         public bool SkipVeto { get; set; } = true;
 
+        // Optional per-match ready policy. When provided, this overrides the
+        // server-wide operator ready gate for this loaded match only.
+        [JsonPropertyName("player_ready_enabled")]
+        public bool? PlayerReadyEnabled { get; set; }
+
         [JsonPropertyName("match_id")]
         public long MatchId { get; set; }
 

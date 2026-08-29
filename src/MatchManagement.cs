@@ -363,6 +363,7 @@ namespace MatchZy
                     case "skip_veto":
                     case "clinch_series":
                     case "wingman":
+                    case "player_ready_enabled":
                         if (!bool.TryParse(jsonData[field]!.ToString(), out bool result))
                         {
                             return $"{field} should be a boolean!";
@@ -474,6 +475,14 @@ namespace MatchZy
             }
 
             GetCvarValues(jsonDataObject);
+
+            // Manual matches can carry their own ready policy. Apply it after
+            // reading legacy cvars so the explicit match field is authoritative.
+            if (matchConfig.PlayerReadyEnabled.HasValue)
+            {
+                operatorReadyGate.Value = !matchConfig.PlayerReadyEnabled.Value;
+                Log($"[LOADMATCH] Per-match player_ready_enabled={matchConfig.PlayerReadyEnabled.Value}; operatorReadyGate={operatorReadyGate.Value}");
+            }
 
             Log($"[LOADMATCH] MinPlayersToReady: {matchConfig.MinPlayersToReady} SeriesClinch: {matchConfig.SeriesCanClinch}");
             Log($"[LOADMATCH] MapsPool: {string.Join(", ", matchConfig.MapsPool)} MapsLeftInVetoPool: {string.Join(", ", matchConfig.MapsLeftInVetoPool)}");
@@ -691,6 +700,17 @@ namespace MatchZy
             if (jsonDataObject["skip_veto"] != null)
             {
                 matchConfig.SkipVeto = bool.Parse(jsonDataObject["skip_veto"]!.ToString());
+            }
+            if (jsonDataObject["player_ready_enabled"] != null)
+            {
+                try
+                {
+                    matchConfig.PlayerReadyEnabled = bool.Parse(jsonDataObject["player_ready_enabled"]!.ToString());
+                }
+                catch (Exception)
+                {
+                    Log("[LOADMATCH] Invalid player_ready_enabled value; ignoring per-match ready policy.");
+                }
             }
             if (jsonDataObject["wingman"] != null)
             {
