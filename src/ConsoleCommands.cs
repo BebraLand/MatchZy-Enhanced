@@ -68,7 +68,8 @@ namespace MatchZy
             Log($"[!ready command] Sent by: {player.UserId} readyAvailable: {readyAvailable} matchStarted: {matchStarted}");
             if (operatorReadyGate.Value && readyAvailable && !matchStarted)
             {
-                PrintToPlayerChat(player, "Match start is controlled by the tournament operator.");
+                PrintToPlayerChat(player, Localizer["matchzy.ready.disabled"]);
+                ShowPlayerNotification(player, "⚠️ READY DISABLED<br>Wait for the operator", "#ffaa00", 18);
                 return;
             }
             if (readyAvailable && !matchStarted)
@@ -138,6 +139,13 @@ namespace MatchZy
             Log($"[!unready command] {player.UserId}");
             if (readyAvailable && !matchStarted)
             {
+                if (operatorReadyGate.Value)
+                {
+                    PrintToPlayerChat(player, Localizer["matchzy.ready.disabled"]);
+                    ShowPlayerNotification(player, "⚠️ READY DISABLED<br>Wait for the operator", "#ffaa00", 18);
+                    return;
+                }
+
                 if (player.UserId.HasValue)
                 {
                     // Auto-ready opt-out: if auto-ready is enabled, remember that this player opted out,
