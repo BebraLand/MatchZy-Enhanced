@@ -372,6 +372,8 @@ namespace MatchZy
             RegisterEventHandler<EventRoundFreezeEnd>(EventRoundFreezeEndHandler);
             RegisterEventHandler<EventPlayerGivenC4>(EventPlayerGivenC4);
             RegisterEventHandler<EventPlayerDeath>(EventPlayerDeathPreHandler, hookMode: HookMode.Pre);
+            RegisterEventHandler<EventBombPlanted>(EventBombPlantedStatsHandler);
+            RegisterEventHandler<EventBombDefused>(EventBombDefusedStatsHandler);
             RegisterListener<Listeners.OnClientDisconnectPost>(playerSlot =>
             {
                 // May not be required, but just to be on safe side so that player data is properly updated in dictionaries
@@ -793,6 +795,7 @@ namespace MatchZy
             {
                 CCSPlayerController? player = @event.Userid;
                 CCSPlayerController? attacker = @event.Attacker;
+                TrackMatchStatsBlind(@event);
                 if (!isPractice) return HookResult.Continue;
 
                 if (!IsPlayerValid(player) || !IsPlayerValid(attacker)) return HookResult.Continue;

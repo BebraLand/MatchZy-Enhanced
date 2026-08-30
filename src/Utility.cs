@@ -1149,6 +1149,7 @@ namespace MatchZy
         private void StartLive()
         {
             CrashBreadcrumb("StartLive: enter");
+            matchStatsTracker.Reset();
             PreserveSimulationBotsForLiveTransition();
             SetupLiveFlagsAndCfg();
             CrashBreadcrumb("StartLive: after SetupLiveFlagsAndCfg");
@@ -1289,6 +1290,7 @@ namespace MatchZy
                 liveMatchId = -1;
                 isPractice = false;
                 isDryRun = false;
+                matchStatsTracker.Reset();
                 ClearSimulationState();
                 ClearAutoReadySimulationState();
                 ClearAutoReadyState();
@@ -2735,6 +2737,7 @@ namespace MatchZy
         {
             if (isDryRun) RandomizeSpawns();
             if (!matchStarted) return;
+            if (isMatchLive) BeginMatchStatsRound();
             playerHasTakenDamage = false;
             HandleCoaches();
             CreateMatchZyRoundDataBackup();
@@ -2782,6 +2785,7 @@ namespace MatchZy
 
                     ShowDamageInfo();
 
+                    matchStatsTracker.EndRound(@event.Winner);
                     (Dictionary<ulong, Dictionary<string, object>> playerStatsDictionary, List<StatsPlayer> playerStatsListTeam1, List<StatsPlayer> playerStatsListTeam2) = GetPlayerStatsDict();
 
                     int currentMapNumber = matchConfig.CurrentMapNumber;
@@ -3686,6 +3690,15 @@ namespace MatchZy
                         displayName = identity.ConfigName;
                     }
 
+                    var trackedStats = matchStatsTracker.Get(displaySteamId);
+                    int trackedRoundsPlayed = trackedStats?.RoundsPlayed ?? roundsPlayed;
+                    int builtInSingleKillRounds = Math.Max(0,
+                        playerStats.Kills -
+                        2 * playerStats.Enemy2Ks -
+                        3 * playerStats.Enemy3Ks -
+                        4 * playerStats.Enemy4Ks -
+                        5 * playerStats.Enemy5Ks);
+
                     // Create a nested dictionary to store individual stats for the player
                     Dictionary<string, object> stats = new Dictionary<string, object>
                     {
@@ -3738,40 +3751,39 @@ namespace MatchZy
                     playerStatsDictionary.Add(steamid64, stats);
 
                     // Populate PlayerStats instance
-                    // Todo: Implement stats which are marked as 0 for now
                     PlayerStats playerStatsInstance = new()
                     {
                         Kills = playerStats.Kills,
                         Deaths = playerStats.Deaths,
                         Assists = playerStats.Assists,
-                        FlashAssists = 0,
-                        TeamKills = 0,
-                        Suicides = 0,
+                        FlashAssists = trackedStats?.FlashAssists ?? 0,
+                        TeamKills = trackedStats?.TeamKills ?? 0,
+                        Suicides = trackedStats?.Suicides ?? 0,
                         Damage = playerStats.Damage,
                         UtilityDamage = playerStats.UtilityDamage,
                         EnemiesFlashed = playerStats.EnemiesFlashed,
-                        FriendliesFlashed = 0,
-                        KnifeKills = 0,
+                        FriendliesFlashed = trackedStats?.FriendliesFlashed ?? 0,
+                        KnifeKills = Math.Max(trackedStats?.KnifeKills ?? 0, playerStats.EnemyKnifeKills),
                         HeadshotKills = playerStats.HeadShotKills,
-                        RoundsPlayed = roundsPlayed,
-                        BombDefuses = 0,
-                        BombPlants = 0,
-                        Kills1 = 0,
-                        Kills2 = playerStats.Enemy2Ks,
-                        Kills3 = playerStats.Enemy3Ks,
-                        Kills4 = playerStats.Enemy4Ks,
-                        Kills5 = playerStats.Enemy5Ks,
-                        OneV1s = playerStats.I1v1Wins,
-                        OneV2s = playerStats.I1v2Wins,
-                        OneV3s = 0,
-                        OneV4s = 0,
-                        OneV5s = 0,
-                        FirstKillsT = 0,
-                        FirstKillsCT = 0,
-                        FirstDeathsT = 0,
-                        FirstDeathsCT = 0,
-                        TradeKills = 0,
-                        Kast = 0,
+                        RoundsPlayed = trackedRoundsPlayed,
+                        BombDefuses = trackedStats?.BombDefuses ?? 0,
+                        BombPlants = trackedStats?.BombPlants ?? 0,
+                        Kills1 = Math.Max(trackedStats?.Kills1 ?? 0, builtInSingleKillRounds),
+                        Kills2 = Math.Max(trackedStats?.Kills2 ?? 0, playerStats.Enemy2Ks),
+                        Kills3 = Math.Max(trackedStats?.Kills3 ?? 0, playerStats.Enemy3Ks),
+                        Kills4 = Math.Max(trackedStats?.Kills4 ?? 0, playerStats.Enemy4Ks),
+                        Kills5 = Math.Max(trackedStats?.Kills5 ?? 0, playerStats.Enemy5Ks),
+                        OneV1s = Math.Max(trackedStats?.OneV1s ?? 0, playerStats.I1v1Wins),
+                        OneV2s = Math.Max(trackedStats?.OneV2s ?? 0, playerStats.I1v2Wins),
+                        OneV3s = trackedStats?.OneV3s ?? 0,
+                        OneV4s = trackedStats?.OneV4s ?? 0,
+                        OneV5s = trackedStats?.OneV5s ?? 0,
+                        FirstKillsT = trackedStats?.FirstKillsT ?? 0,
+                        FirstKillsCT = trackedStats?.FirstKillsCT ?? 0,
+                        FirstDeathsT = trackedStats?.FirstDeathsT ?? 0,
+                        FirstDeathsCT = trackedStats?.FirstDeathsCT ?? 0,
+                        TradeKills = trackedStats?.TradeKills ?? 0,
+                        Kast = trackedStats?.Kast ?? 0,
                         Score = player.Score,
                         Mvps = player.MVPs,
                     };
