@@ -2,6 +2,8 @@
     "matchzy.ready.markedready": "Вас отметили как готового.",
     "matchzy.ready.markedunready": "Вас отметили как НЕ готового.",
     "matchzy.ready.disabled": "Подтверждение готовности игроками отключено. Матч запустит оператор турнира.",
+    "matchzy.ready.join.player": "Матч загружен. Когда все игроки подключатся, напишите .ready. Матч начнётся автоматически после готовности обеих команд.",
+    "matchzy.ready.join.operator": "Матч загружен. Ожидайте команды оператора. Не нужно писать .ready.",
     "matchzy.ready.readytotestorebackupinfomessage": "Unready players: {0}. Please type .ready when you are ready to restore the match backup. {1}",
     "matchzy.knife.sidedecisionpending": "{green}{0}{default} выиграла ножевой раунд. Ждём, пока они введут {green}.stay{default} или {green}.switch{default}.",
     "matchzy.knife.decidedtostay": "{green}{0}{default} решили остаться.",

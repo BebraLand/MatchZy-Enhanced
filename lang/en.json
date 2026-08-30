@@ -2,6 +2,8 @@
   "matchzy.ready.markedready": "You have been marked as ready.",
   "matchzy.ready.markedunready": "You have been marked as NOT ready.",
   "matchzy.ready.disabled": "Player ready-up is disabled. The tournament operator will start the match.",
+  "matchzy.ready.join.player": "Match loaded. When all players are connected, type .ready. The match will start automatically when both teams are ready.",
+  "matchzy.ready.join.operator": "Match loaded. Wait for the tournament operator. You do not need to type .ready.",
   "matchzy.ready.readytotestorebackupinfomessage": "Unready players: {0}. Please type .ready when you are ready to restore the match backup. {1}",
   
   "matchzy.autoready.markedready": "You have been automatically marked as ready. Type .unready if you are not ready.",

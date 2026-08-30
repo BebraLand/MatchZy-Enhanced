@@ -90,6 +90,13 @@ public partial class MatchZy
                 }
                 playerConnectionTimes[player.SteamID] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
+                if (!player.IsBot && readyAvailable && !matchStarted && isMatchSetup)
+                {
+                    PrintToPlayerChat(player, operatorReadyGate.Value
+                        ? Localizer["matchzy.ready.join.operator"]
+                        : Localizer["matchzy.ready.join.player"]);
+                }
+
                 // In simulation mode, map this bot to a configured player identity.
                 if (isSimulationMode && player.IsBot)
                 {
