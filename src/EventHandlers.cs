@@ -511,6 +511,7 @@ public partial class MatchZy
         {
             // We do not broadcast the suicide of the coach
             if (!matchStarted) return HookResult.Continue;
+            TrackMatchStatsDeath(@event);
 
             if (@event.Attacker == @event.Userid)
             {

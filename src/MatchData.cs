@@ -122,7 +122,7 @@ public class PlayerStats
     public int TradeKills { get; set; }
 
     [JsonPropertyName("kast")]
-    public int Kast { get; set; }
+    public double Kast { get; set; }
 
     [JsonPropertyName("score")]
     public int Score { get; set; }
