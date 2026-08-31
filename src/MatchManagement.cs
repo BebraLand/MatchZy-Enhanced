@@ -559,6 +559,7 @@ namespace MatchZy
 
             SetTeamNames();
             UpdatePlayersMap();
+            AddTimer(1.0f, UpdatePlayersMap);
             UpdateHostname();
 
             // If auto-ready is enabled, check if players already on teams should be auto-readied

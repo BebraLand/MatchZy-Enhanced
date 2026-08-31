@@ -469,7 +469,15 @@ namespace MatchZy
                 {
                     if (int.TryParse(info.ArgByIndex(1), out int joiningTeam))
                     {
-                        int playerTeam = (int)GetPlayerTeam(player);
+                        CsTeam expectedTeam = GetPlayerTeam(player);
+                        if (expectedTeam == CsTeam.None)
+                        {
+                            Log($"[jointeam] Kicking {player.PlayerName} ({player.SteamID}): not in the match roster.");
+                            KickPlayer(player);
+                            return HookResult.Stop;
+                        }
+
+                        int playerTeam = (int)expectedTeam;
                         if (joiningTeam != playerTeam)
                         {
                             return HookResult.Stop;
