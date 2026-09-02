@@ -1549,12 +1549,9 @@ namespace MatchZy
                             }
 
                         // CS2 leaves an incoming player on whichever side they joined.
-                        // The roster lookup above only validates their SteamID; it does not
-                        // move them. This is especially visible for a rostered server admin,
-                        // who is allowed through the connect-time admin bypass. Enforce the
-                        // configured logical team after SetMapSides has resolved the current
-                        // map's CT/T assignment. Do not move configured spectators.
-                        if ((team == CsTeam.CounterTerrorist || team == CsTeam.Terrorist) && player.Team != team)
+                        // Enforce the configured team (including Spectator) after the
+                        // match config is loaded and map sides are resolved.
+                        if (team != CsTeam.None && player.Team != team)
                         {
                             Log($"[UpdatePlayersMap] Assigning roster player {player.PlayerName} ({player.SteamID}) to {team}.");
                             SwitchPlayerTeam(player, team);
