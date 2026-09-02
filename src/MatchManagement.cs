@@ -953,6 +953,13 @@ namespace MatchZy
                 {
                     playerTeam = CsTeam.Spectator;
                 }
+                else if (IsPlayerAdmin(player))
+                {
+                    // Admins who are not assigned to either playing roster may
+                    // observe the match, but a playing admin keeps the team
+                    // assignment handled by the branches above.
+                    playerTeam = CsTeam.Spectator;
+                }
             }
             catch (Exception ex)
             {

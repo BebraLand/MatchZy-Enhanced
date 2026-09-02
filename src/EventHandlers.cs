@@ -52,6 +52,14 @@ public partial class MatchZy
                         KickPlayer(player);
                         return HookResult.Continue;
                     }
+
+                    // A spectator/admin can arrive on a playing side before
+                    // MatchZy has finished processing the connection. Queue the
+                    // authoritative team assignment for the next game frame.
+                    if (player.Team != team)
+                    {
+                        SwitchPlayerTeam(player, team);
+                    }
                 }
             }
 

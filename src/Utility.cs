@@ -4603,6 +4603,8 @@ namespace MatchZy
 
             Server.NextFrame(() =>
             {
+                if (!player.IsValid) return;
+
                 if (team == CsTeam.Spectator)
                 {
                     player.ChangeTeam(team);
