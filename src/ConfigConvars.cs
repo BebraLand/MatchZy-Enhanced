@@ -20,7 +20,7 @@ namespace MatchZy
 
         public FakeConVar<bool> everyoneIsAdmin = new("matchzy_everyone_is_admin", "If set to true, all the players will have admin privilege. Default: false", false);
 
-        public FakeConVar<bool> showCreditsOnMatchStart = new("matchzy_show_credits_on_match_start", "Whether to show 'MatchZy Plugin by WD-' message on match start. Default: true", true);
+        public FakeConVar<bool> showCreditsOnMatchStart = new("matchzy_show_credits_on_match_start", "Whether to show 'MatchZy Plugin Fork by aurum' message on match start. Default: true", true);
 
         public FakeConVar<bool> debugChatEnabled = new("matchzy_debug_chat", "Whether to show debug/event logs in in-game chat (e.g. event send status, warmup_end, player_connect). Default: false", false);
 
