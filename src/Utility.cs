@@ -2412,50 +2412,58 @@ namespace MatchZy
             // 60 seconds remaining (if total delay >= 70 seconds)
             if (totalDelay >= 70)
             {
-                AddTimer(totalDelay - 60, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 60, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Grey}Next map loads in {ChatColors.Yellow}1 minute{ChatColors.Default}...");
-                });
+                }));
             }
 
             // 30 seconds remaining (if total delay >= 40 seconds)
             if (totalDelay >= 40)
             {
-                AddTimer(totalDelay - 30, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 30, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Grey}Next map loads in {ChatColors.Yellow}30 seconds{ChatColors.Default}...");
-                });
+                }));
             }
 
             // 15 seconds remaining (if total delay >= 25 seconds)
             if (totalDelay >= 25)
             {
-                AddTimer(totalDelay - 15, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 15, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Yellow}Next map loads in 15 seconds...{ChatColors.Default}");
-                });
+                }));
             }
 
             // 5 seconds remaining (if total delay >= 10 seconds)
             if (totalDelay >= 10)
             {
-                AddTimer(totalDelay - 5, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 5, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Lime}Next map loads in 5 seconds!{ChatColors.Default}");
-                });
+                }));
             }
 
-            ScheduleNextMapTransition(nextMap, restartDelay - 4);
+            ScheduleNextMapTransition(nextMap, restartDelay - 4, nextMapIndex);
         }
 
-        private void ScheduleNextMapTransition(string nextMap, float delay)
+        private void ScheduleNextMapTransition(string nextMap, float delay, int nextMapIndex = -1)
         {
-            AddTimer(delay, () =>
+            scheduledNextMap = nextMap;
+            scheduledNextMapIndex = nextMapIndex;
+            nextMapTransitionTimer?.Kill();
+            nextMapTransitionTimer = AddTimer(delay, () =>
             {
+                nextMapTransitionTimer = null;
+                scheduledNextMap = "";
+                scheduledNextMapIndex = -1;
+                nextMapCountdownTimers.ForEach(timer => timer.Kill());
+                nextMapCountdownTimers.Clear();
                 if (!isMatchSetup) return;
 
                 // For simulation mode we need to fully reset per-map simulation state before
@@ -2560,7 +2568,7 @@ namespace MatchZy
             }
 
             Log($"[OperatorNextMap] Starting {nextMap} via {trigger}.");
-            ScheduleNextMapTransition(nextMap, 0);
+            ScheduleNextMapTransition(nextMap, 0, nextMapIndex);
         }
 
         private void ChangeMap(string mapName, float delay)

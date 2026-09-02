@@ -90,6 +90,10 @@ namespace MatchZy
         public string pendingOperatorNextMap = "";
         public int pendingOperatorNextMapIndex = -1;
         private CounterStrikeSharp.API.Modules.Timers.Timer? operatorNextMapAutoTimer = null;
+        private CounterStrikeSharp.API.Modules.Timers.Timer? nextMapTransitionTimer = null;
+        private readonly List<CounterStrikeSharp.API.Modules.Timers.Timer> nextMapCountdownTimers = new();
+        private string scheduledNextMap = "";
+        private int scheduledNextMapIndex = -1;
         private int operatorIntermissionOriginalRestartDelay = -1;
 
         // Pause Data

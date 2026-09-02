@@ -122,7 +122,23 @@ namespace MatchZy
 
             if (!awaitingOperatorNextMap || string.IsNullOrWhiteSpace(pendingOperatorNextMap))
             {
-                ReplyToUserCommand(player, "There is no next map waiting for operator approval.");
+                if (nextMapTransitionTimer == null || string.IsNullOrWhiteSpace(scheduledNextMap))
+                {
+                    ReplyToUserCommand(player, "There is no next map waiting to be started.");
+                    return;
+                }
+
+                string scheduledMap = scheduledNextMap;
+                int scheduledMapIndex = scheduledNextMapIndex;
+                nextMapTransitionTimer.Kill();
+                nextMapTransitionTimer = null;
+                nextMapCountdownTimers.ForEach(timer => timer.Kill());
+                nextMapCountdownTimers.Clear();
+                scheduledNextMap = "";
+                scheduledNextMapIndex = -1;
+                matchConfig.CurrentMapNumber = scheduledMapIndex;
+                PrintToAllChat($"{ChatColors.Green}Tournament operator is loading the next map: {scheduledMap}.{ChatColors.Default}");
+                ScheduleNextMapTransition(scheduledMap, 0, scheduledMapIndex);
                 return;
             }
 
