@@ -1505,63 +1505,89 @@ namespace MatchZy
             {
                 var playerEntities = Utilities.FindAllEntitiesByDesignerName<CCSPlayerController>("cs_player_controller");
                 Log($"[UpdatePlayersMap] CCSPlayerController count: {playerEntities.Count<CCSPlayerController>()} matchModeOnly: {matchModeOnly}");
-                connectedPlayers = 0;
 
-                // Clear the playerData dictionary by creating a new instance to add fresh data.
-                playerData = new Dictionary<int, CCSPlayerController>();
+                // Build into a local map and swap it in only once the whole scan
+                // has succeeded.
+                //
+                // This used to clear playerData up front and fill it in place.
+                // Every member access in the loop below can throw on an entity
+                // that is mid-disconnect or otherwise not fully valid, and the
+                // catch at the bottom swallows it — so one bad entity left
+                // playerData empty or half-built, and the plugin then believed
+                // nobody was on the server. IsTeamReady logs playerCount:0 for
+                // every team, .ready stops registering, and the match never goes
+                // live, with nothing but a single FATAL line to say why.
+                //
+                // Failing now leaves the previous good map in place instead.
+                var updatedPlayerData = new Dictionary<int, CCSPlayerController>();
+                int updatedConnectedPlayers = 0;
+
                 foreach (var player in playerEntities)
                 {
-                    if (player == null) continue;
-                    if (!player.IsValid || player.IsHLTV) continue;
-
-                    bool isSimulationBot = isSimulationMode && player.IsBot;
-
-                    // Outside of simulation mode, we still ignore bots in playerData – they are not
-                    // considered "real players" for the ready system or whitelist enforcement.
-                    if (!isSimulationBot && player.IsBot) continue;
-
-                    // In normal (non-simulation) matches, enforce that only configured players are
-                    // allowed to remain on the server when a match is setup / matchModeOnly is true.
-                    // Simulation bots are exempt from this so we do not immediately kick them.
-                    if ((isMatchSetup || matchModeOnly) && !isSimulationBot)
+                    try
                     {
-                        CsTeam team = GetPlayerTeam(player);
-                        if (team == CsTeam.None && player.UserId.HasValue)
+                        if (player == null) continue;
+                        if (!player.IsValid || player.IsHLTV) continue;
+
+                        bool isSimulationBot = isSimulationMode && player.IsBot;
+
+                        // Outside of simulation mode, we still ignore bots in playerData – they are not
+                        // considered "real players" for the ready system or whitelist enforcement.
+                        if (!isSimulationBot && player.IsBot) continue;
+
+                        CsTeam team = CsTeam.None;
+
+                        if ((isMatchSetup || matchModeOnly) && !isSimulationBot)
                         {
-                            Log($"[UpdatePlayersMap] Executing kickid for player '{player.PlayerName}' (UserId={(ushort)player.UserId.Value}) because team=None in match-only mode (isSimulationMode={isSimulationMode}, IsBot={player.IsBot}).");
-                            Server.ExecuteCommand($"kickid {(ushort)player.UserId}");
-                            continue;
-                        }
+                            team = GetPlayerTeam(player);
+
+                            if (team == CsTeam.None && player.UserId.HasValue)
+                            {
+                                Log($"[UpdatePlayersMap] Executing kickid for player '{player.PlayerName}' (UserId={(ushort)player.UserId.Value}) because team=None in match-only mode (isSimulationMode={isSimulationMode}, IsBot={player.IsBot}).");
+                                Server.ExecuteCommand($"kickid {(ushort)player.UserId}");
+                                continue;
+                            }
 
                         // CS2 leaves an incoming player on whichever side they joined.
-                        // The roster lookup above only validates their SteamID; it does not
-                        // move them. This is especially visible for a rostered server admin,
-                        // who is allowed through the connect-time admin bypass. Enforce the
-                        // configured logical team after SetMapSides has resolved the current
-                        // map's CT/T assignment. Do not move configured spectators.
-                        if ((team == CsTeam.CounterTerrorist || team == CsTeam.Terrorist) && player.Team != team)
+                        // Enforce the configured team (including Spectator) after the
+                        // match config is loaded and map sides are resolved.
+                        if (team != CsTeam.None && player.Team != team)
                         {
                             Log($"[UpdatePlayersMap] Assigning roster player {player.PlayerName} ({player.SteamID}) to {team}.");
                             SwitchPlayerTeam(player, team);
                         }
-                    }
-
-                    // A player controller still exists after a player disconnects
-                    // Hence checking whether the player is actually in the server or not
-                    if (player.Connected != PlayerConnectedState.PlayerConnected) continue;
-
-                    if (player.UserId.HasValue)
-                    {
-                        // Updating playerData and playerReadyStatus
-                        playerData[player.UserId.Value] = player;
-
-                        // Adding missing player in playerReadyStatus
-                        if (!playerReadyStatus.ContainsKey(player.UserId.Value))
-                        {
-                            playerReadyStatus[player.UserId.Value] = false;
                         }
+
+                        // A player controller still exists after a player disconnects
+                        // Hence checking whether the player is actually in the server or not
+                        if (player.Connected != PlayerConnectedState.PlayerConnected) continue;
+
+                        if (player.UserId.HasValue)
+                        {
+                            updatedPlayerData[player.UserId.Value] = player;
+                        }
+                        updatedConnectedPlayers++;
                     }
-                    connectedPlayers++;
+                    catch (Exception playerError)
+                    {
+                        // One unreadable entity must not cost us the whole
+                        // refresh. Skip it and keep going.
+                        Log($"[UpdatePlayersMap] Skipping a player entity that could not be read: {playerError.Message}");
+                    }
+                }
+
+                // The scan completed, so this map is trustworthy. Publish it.
+                playerData = updatedPlayerData;
+                connectedPlayers = updatedConnectedPlayers;
+
+                // Adding missing players in playerReadyStatus. Done after the
+                // swap so a failed scan can never drop a player's ready state.
+                foreach (var key in playerData.Keys)
+                {
+                    if (!playerReadyStatus.ContainsKey(key))
+                    {
+                        playerReadyStatus[key] = false;
+                    }
                 }
 
                 // Removing disconnected players from playerReadyStatus
@@ -1577,7 +1603,10 @@ namespace MatchZy
             }
             catch (Exception e)
             {
-                Log($"[UpdatePlayersMap FATAL] An error occurred: {e.Message}");
+                // playerData and connectedPlayers are left untouched: the local
+                // map is only published on success, so a failure here means
+                // "could not refresh", not "there is nobody on the server".
+                Log($"[UpdatePlayersMap FATAL] An error occurred, keeping the previous player map ({playerData.Count} players): {e.Message}");
             }
         }
 
@@ -2106,7 +2135,7 @@ namespace MatchZy
             }
             if (showCreditsOnMatchStart.Value)
             {
-                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}MatchZy{ChatColors.Default} Plugin by {ChatColors.Green}WD-{ChatColors.Default}");
+                Server.PrintToChatAll($"{chatPrefix} {ChatColors.Green}MatchZy{ChatColors.Default} Plugin Fork by {ChatColors.Green}aurum{ChatColors.Default}");
             }
             if (matchStartMessage.Value.Trim() != "" && matchStartMessage.Value.Trim() != "\"\"")
             {
@@ -2383,50 +2412,58 @@ namespace MatchZy
             // 60 seconds remaining (if total delay >= 70 seconds)
             if (totalDelay >= 70)
             {
-                AddTimer(totalDelay - 60, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 60, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Grey}Next map loads in {ChatColors.Yellow}1 minute{ChatColors.Default}...");
-                });
+                }));
             }
 
             // 30 seconds remaining (if total delay >= 40 seconds)
             if (totalDelay >= 40)
             {
-                AddTimer(totalDelay - 30, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 30, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Grey}Next map loads in {ChatColors.Yellow}30 seconds{ChatColors.Default}...");
-                });
+                }));
             }
 
             // 15 seconds remaining (if total delay >= 25 seconds)
             if (totalDelay >= 25)
             {
-                AddTimer(totalDelay - 15, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 15, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Yellow}Next map loads in 15 seconds...{ChatColors.Default}");
-                });
+                }));
             }
 
             // 5 seconds remaining (if total delay >= 10 seconds)
             if (totalDelay >= 10)
             {
-                AddTimer(totalDelay - 5, () =>
+                nextMapCountdownTimers.Add(AddTimer(totalDelay - 5, () =>
                 {
                     if (!isMatchSetup) return;
                     PrintToAllChat($"{ChatColors.Lime}Next map loads in 5 seconds!{ChatColors.Default}");
-                });
+                }));
             }
 
-            ScheduleNextMapTransition(nextMap, restartDelay - 4);
+            ScheduleNextMapTransition(nextMap, restartDelay - 4, nextMapIndex);
         }
 
-        private void ScheduleNextMapTransition(string nextMap, float delay)
+        private void ScheduleNextMapTransition(string nextMap, float delay, int nextMapIndex = -1)
         {
-            AddTimer(delay, () =>
+            scheduledNextMap = nextMap;
+            scheduledNextMapIndex = nextMapIndex;
+            nextMapTransitionTimer?.Kill();
+            nextMapTransitionTimer = AddTimer(delay, () =>
             {
+                nextMapTransitionTimer = null;
+                scheduledNextMap = "";
+                scheduledNextMapIndex = -1;
+                nextMapCountdownTimers.ForEach(timer => timer.Kill());
+                nextMapCountdownTimers.Clear();
                 if (!isMatchSetup) return;
 
                 // For simulation mode we need to fully reset per-map simulation state before
@@ -2531,7 +2568,7 @@ namespace MatchZy
             }
 
             Log($"[OperatorNextMap] Starting {nextMap} via {trigger}.");
-            ScheduleNextMapTransition(nextMap, 0);
+            ScheduleNextMapTransition(nextMap, 0, nextMapIndex);
         }
 
         private void ChangeMap(string mapName, float delay)
@@ -4566,6 +4603,8 @@ namespace MatchZy
 
             Server.NextFrame(() =>
             {
+                if (!player.IsValid) return;
+
                 if (team == CsTeam.Spectator)
                 {
                     player.ChangeTeam(team);

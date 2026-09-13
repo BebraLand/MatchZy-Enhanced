@@ -8,11 +8,15 @@
 
   <p>Enhanced fork of MatchZy tailored for the automatic tournament platform. Adds more events and enables external tools to setup, control, and track matches in real-time.</p>
 
+> 🔥 **Fork lineage:** [Original MatchZy](https://github.com/shobhit-pathak/MatchZy) → [sivert-io MatchZy Enhanced](https://github.com/sivert-io/MatchZy-Enhanced) → **BebraLand MatchZy Enhanced**.
+>
+> 🧠 **What BebraLand adds:** the missing production glue between the CS2 server, the tournament admin panel, and the broadcast stack — reliable server handoffs, operator-controlled series flow, authoritative live state, comprehensive statistics, and roster enforcement. It is designed to work together with [MatchZy Auto Tournament](https://github.com/BebraLand/matchzy-auto-tournament) and [JTs Hud](https://github.com/BebraLand/JTs-Hud).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![C#](https://img.shields.io/badge/C%23-239120?logo=c-sharp&logoColor=white)](https://docs.microsoft.com/en-us/dotnet/csharp/)
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 
-**🔗 [MatchZy Auto Tournament](https://github.com/sivert-io/matchzy-auto-tournament)** • **[CS2 Server Manager](https://github.com/sivert-io/cs2-server-manager)**
+**🔗 [MatchZy Auto Tournament](https://github.com/BebraLand/matchzy-auto-tournament)** • **[CS2 Server Manager](https://github.com/sivert-io/cs2-server-manager)**
 
 </div>
 
@@ -26,7 +30,7 @@
 
 ### Manual Installation
 
-1. Download the [latest release](https://github.com/sivert-io/MatchZy-Enhanced/releases)
+1. Download the [latest release](https://github.com/BebraLand/MatchZy-Enhanced/releases)
 2. Extract to `game/csgo/` directory
 3. Restart your server
 
@@ -36,7 +40,7 @@
 
 ## ✨ What's Enhanced
 
-Built for **[MatchZy Auto Tournament](https://github.com/sivert-io/matchzy-auto-tournament)** with extended APIs and events for tournament automation:
+Built for **[MatchZy Auto Tournament](https://github.com/BebraLand/matchzy-auto-tournament)** with extended APIs and events for tournament automation. The original enhanced feature set is kept below; BebraLand-specific additions are listed separately:
 
 ### Tournament Features
 - 📡 **Extended event system** for real-time match tracking
@@ -56,6 +60,16 @@ Built for **[MatchZy Auto Tournament](https://github.com/sivert-io/matchzy-auto-
 - ⚡ **Smart demo delays** — 10s restart when demos disabled
 - 📺 **Center notifications** — Important events shown center-screen with countdown timers
 
+### BebraLand Fork Features
+
+These are the BebraLand-specific additions on top of the original MatchZy feature set:
+
+- 🎛️ **Operator-controlled series transitions** — admins can decide when a series moves to the next map instead of fighting automatic intermission timing.
+- 🔁 **Live match reallocation** — a live match can be handed to another server through explicit checkpoints, preserving the tournament state during infrastructure changes.
+- 📊 **Comprehensive match statistics** — the plugin sends the round, map, series, and player data needed by MAT and JTs Hud to build real history and broadcast views.
+- 🧩 **Roster enforcement across transitions** — configured players stay on their assigned sides and non-playing admins are routed to spectators after connects and map loads.
+- 🧪 **Stable simulation behavior** — bot rosters remain predictable during warmup and go-live, making tournament demos and integration testing repeatable.
+
 ---
 
 ## 📖 Documentation (docs.sivert.io)
@@ -69,13 +83,14 @@ Built for **[MatchZy Auto Tournament](https://github.com/sivert-io/matchzy-auto-
 
 ## 🔗 Related Projects
 
-- **[MatchZy Auto Tournament](https://github.com/sivert-io/matchzy-auto-tournament)** — Automated tournament platform
+- **[MatchZy Auto Tournament](https://github.com/BebraLand/matchzy-auto-tournament)** — Automated tournament platform
+- **[JTs Hud](https://github.com/BebraLand/JTs-Hud)** — Broadcast HUD manager connected to the same live match state
 - **[CS2 Server Manager](https://github.com/sivert-io/cs2-server-manager)** — Multi-server deployment tool
 
 ## 🙏 Credits
 
 **Original MatchZy:** [shobhit-pathak/MatchZy](https://github.com/shobhit-pathak/MatchZy) by WD-  
-**Enhanced Fork:** Maintained by [sivert-io](https://github.com/sivert-io) for [MatchZy Auto Tournament](https://github.com/sivert-io/matchzy-auto-tournament)
+**Enhanced Fork:** Maintained by [BebraLand](https://github.com/BebraLand) for [MatchZy Auto Tournament](https://github.com/BebraLand/matchzy-auto-tournament)
 
 Built with [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp/) • Inspired by [Get5](https://github.com/splewis/get5)
 

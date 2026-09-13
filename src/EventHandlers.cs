@@ -44,15 +44,6 @@ public partial class MatchZy
 
                 if (isMatchSetup || matchModeOnly)
                 {
-                    // An admin who is not in either roster may connect to observe or
-                    // administer the server. A rostered admin must continue through
-                    // normal match setup so their configured team is enforced and
-                    // their connection is reported to MAT.
-                    if (IsPlayerAdmin(player) && GetPlayerTeam(player) == CsTeam.None)
-                    {
-                        return HookResult.Continue;
-                    }
-
                     CsTeam team = GetPlayerTeam(player);
                     if (team == CsTeam.None)
                     {
@@ -60,6 +51,14 @@ public partial class MatchZy
                         PrintToAllChat($"Kicking player {player.PlayerName} - Not a player in this game.");
                         KickPlayer(player);
                         return HookResult.Continue;
+                    }
+
+                    // A spectator/admin can arrive on a playing side before
+                    // MatchZy has finished processing the connection. Queue the
+                    // authoritative team assignment for the next game frame.
+                    if (player.Team != team)
+                    {
+                        SwitchPlayerTeam(player, team);
                     }
                 }
             }

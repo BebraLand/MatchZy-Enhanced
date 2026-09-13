@@ -15,7 +15,7 @@ namespace MatchZy
 
         public override string ModuleName => "MatchZy";
 
-        public override string ModuleVersion => "2.0.0";
+        public override string ModuleVersion => "2.1.4";
 
         public override string ModuleAuthor => "sivert (https://github.com/sivert-io/)";
 
@@ -90,6 +90,10 @@ namespace MatchZy
         public string pendingOperatorNextMap = "";
         public int pendingOperatorNextMapIndex = -1;
         private CounterStrikeSharp.API.Modules.Timers.Timer? operatorNextMapAutoTimer = null;
+        private CounterStrikeSharp.API.Modules.Timers.Timer? nextMapTransitionTimer = null;
+        private readonly List<CounterStrikeSharp.API.Modules.Timers.Timer> nextMapCountdownTimers = new();
+        private string scheduledNextMap = "";
+        private int scheduledNextMapIndex = -1;
         private int operatorIntermissionOriginalRestartDelay = -1;
 
         // Pause Data
@@ -469,7 +473,15 @@ namespace MatchZy
                 {
                     if (int.TryParse(info.ArgByIndex(1), out int joiningTeam))
                     {
-                        int playerTeam = (int)GetPlayerTeam(player);
+                        CsTeam expectedTeam = GetPlayerTeam(player);
+                        if (expectedTeam == CsTeam.None)
+                        {
+                            Log($"[jointeam] Kicking {player.PlayerName} ({player.SteamID}): not in the match roster.");
+                            KickPlayer(player);
+                            return HookResult.Stop;
+                        }
+
+                        int playerTeam = (int)expectedTeam;
                         if (joiningTeam != playerTeam)
                         {
                             return HookResult.Stop;

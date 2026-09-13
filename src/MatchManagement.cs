@@ -559,6 +559,7 @@ namespace MatchZy
 
             SetTeamNames();
             UpdatePlayersMap();
+            AddTimer(1.0f, UpdatePlayersMap);
             UpdateHostname();
 
             // If auto-ready is enabled, check if players already on teams should be auto-readied
@@ -950,6 +951,13 @@ namespace MatchZy
                 }
                 else if (matchConfig.Spectators != null && matchConfig.Spectators[steamId.ToString()] != null)
                 {
+                    playerTeam = CsTeam.Spectator;
+                }
+                else if (IsPlayerAdmin(player))
+                {
+                    // Admins who are not assigned to either playing roster may
+                    // observe the match, but a playing admin keeps the team
+                    // assignment handled by the branches above.
                     playerTeam = CsTeam.Spectator;
                 }
             }
