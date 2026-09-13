@@ -31,6 +31,18 @@ namespace MatchZy
         public string backupUploadHeaderKey = "";
         public string backupUploadHeaderValue = "";
 
+        private sealed class LiveReallocationBackupBundle
+        {
+            public long matchid { get; set; }
+            public List<LiveReallocationBackupFile> backups { get; set; } = [];
+        }
+
+        private sealed class LiveReallocationBackupFile
+        {
+            public string fileName { get; set; } = "";
+            public string content { get; set; } = "";
+        }
+
 
         public void SetupRoundBackupFile()
         {
@@ -414,7 +426,8 @@ namespace MatchZy
         public string? CreateMatchZyRoundDataBackup(
             string? uploadUrl = null,
             string? uploadHeaderKey = null,
-            string? uploadHeaderValue = null)
+            string? uploadHeaderValue = null,
+            bool upload = true)
         {
             Log($"[CreateMatchZyRoundDataBackup] isRoundRestoring: {isRoundRestoring} isMatchLive: {isMatchLive}");
             if (!isMatchLive || isRoundRestoring) return null;
@@ -477,7 +490,7 @@ namespace MatchZy
                 string targetUrl = uploadUrl ?? backupUploadURL;
                 string targetHeaderKey = uploadHeaderKey ?? backupUploadHeaderKey;
                 string targetHeaderValue = uploadHeaderValue ?? backupUploadHeaderValue;
-                if (!string.IsNullOrWhiteSpace(targetUrl))
+                if (upload && !string.IsNullOrWhiteSpace(targetUrl))
                 {
                     Task.Run(async () =>
                     {
@@ -494,8 +507,52 @@ namespace MatchZy
             }
         }
 
+        private async Task<bool> UploadLiveReallocationFileAsync(
+            string filePath,
+            string uploadUrl,
+            string headerKey,
+            string headerValue)
+        {
+            const int maxAttempts = 3;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+                    if (!string.IsNullOrWhiteSpace(headerKey) && !string.IsNullOrWhiteSpace(headerValue))
+                    {
+                        httpClient.DefaultRequestHeaders.Add(headerKey, headerValue);
+                    }
+
+                    using FileStream fileStream = File.OpenRead(filePath);
+                    using StreamContent content = new(fileStream);
+                    content.Headers.Add("Content-Type", "application/octet-stream");
+                    content.Headers.Add("MatchZy-FileName", Path.GetFileName(filePath));
+
+                    using HttpResponseMessage response = await httpClient.PostAsync(uploadUrl, content).ConfigureAwait(false);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        return true;
+                    }
+
+                    Log($"[LiveReallocate] Backup upload failed ({(int)response.StatusCode}) for {Path.GetFileName(filePath)}");
+                }
+                catch (Exception e)
+                {
+                    Log($"[LiveReallocate] Backup upload attempt {attempt}/{maxAttempts} failed for {Path.GetFileName(filePath)}: {e.Message}");
+                }
+
+                if (attempt < maxAttempts)
+                {
+                    await Task.Delay(500 * attempt).ConfigureAwait(false);
+                }
+            }
+
+            return false;
+        }
+
         [ConsoleCommand("matchzy_live_reallocate_capture", "Capture and upload the current live round checkpoint for server migration")]
-        [CommandHelper(minArgs: 1, usage: "<upload_url> [header_name] [header_value]")]
+        [CommandHelper(minArgs: 4, usage: "<checkpoint_url> <header_name> <header_value> <backups_url>")]
         public void OnLiveReallocateCaptureCommand(CCSPlayerController? player, CommandInfo command)
         {
             if (player != null) return;
@@ -514,21 +571,61 @@ namespace MatchZy
 
             string headerKey = command.ArgCount > 2 ? command.ArgByIndex(2).Trim().Trim('"') : "";
             string headerValue = command.ArgCount > 3 ? command.ArgByIndex(3).Trim().Trim('"') : "";
+            string backupsUploadUrl = command.ArgCount > 4 ? command.ArgByIndex(4).Trim().Trim('"') : "";
+            if (!IsValidUrl(backupsUploadUrl))
+            {
+                ReplyToUserCommand(player, "Invalid live reallocation backups upload URL.");
+                return;
+            }
 
             PrintToAllChat($"{ChatColors.Yellow}Live server migration is starting. The match will be paused. A new server address will appear in chat shortly.{ChatColors.Default}");
 
             // Freeze the live match before reading the round checkpoint. The native
             // backup is the authoritative source for score/economy/spawn state.
             ForcePauseMatch(null, null);
-            string? filePath = CreateMatchZyRoundDataBackup(uploadUrl, headerKey, headerValue);
+            string? filePath = CreateMatchZyRoundDataBackup(upload: false);
             if (filePath == null)
             {
                 ReplyToUserCommand(player, "Unable to capture the live round checkpoint.");
                 return;
             }
 
-            Log($"[LiveReallocate] Checkpoint upload started: {filePath}");
-            ReplyToUserCommand(player, "Live round checkpoint capture started.");
+            string prefix = $"matchzy_{liveMatchId}_";
+            string backupDirectory = Path.Combine(Server.GameDirectory, "csgo", "MatchZyDataBackup");
+            List<string> backupFiles = Directory.EnumerateFiles(backupDirectory, $"{prefix}*.json")
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToList();
+            if (!backupFiles.Contains(filePath, StringComparer.OrdinalIgnoreCase))
+            {
+                backupFiles.Add(filePath);
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    foreach (string backupFile in backupFiles)
+                    {
+                        if (!await UploadLiveReallocationFileAsync(backupFile, backupsUploadUrl, headerKey, headerValue))
+                        {
+                            Log("[LiveReallocate] Historical backup transfer failed; checkpoint will not be published.");
+                            return;
+                        }
+                    }
+
+                    if (!await UploadLiveReallocationFileAsync(filePath, uploadUrl, headerKey, headerValue))
+                    {
+                        Log("[LiveReallocate] Checkpoint upload failed after historical backup transfer.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log($"[LiveReallocate] Backup transfer failed: {e.Message}");
+                }
+            });
+
+            Log($"[LiveReallocate] Transferring {backupFiles.Count} round backups and checkpoint: {filePath}");
+            ReplyToUserCommand(player, "Live round checkpoint and historical backup transfer started.");
         }
 
         [ConsoleCommand("matchzy_live_reallocate_redirect", "Announce the replacement MatchZy server")]
@@ -567,6 +664,100 @@ namespace MatchZy
             }
             Log($"[LiveReallocate] Announced manual reconnect address {address} to {matchPlayers.Count} players");
             ReplyToUserCommand(player, $"Announced manual reconnect address {address} to {matchPlayers.Count} players.");
+        }
+
+        [ConsoleCommand("matchzy_live_reallocate_import_backups", "Import transferred round backups for a live server migration")]
+        [CommandHelper(minArgs: 4, usage: "<backups_url> <header_name> <header_value> <confirmation_url>")]
+        public void OnLiveReallocateImportBackupsCommand(CCSPlayerController? player, CommandInfo command)
+        {
+            if (player != null) return;
+
+            string backupsUrl = command.ArgByIndex(1).Trim().Trim('"');
+            string headerKey = command.ArgByIndex(2).Trim().Trim('"');
+            string headerValue = command.ArgByIndex(3).Trim().Trim('"');
+            string confirmationUrl = command.ArgByIndex(4).Trim().Trim('"');
+            if (!IsValidUrl(backupsUrl) || !IsValidUrl(confirmationUrl))
+            {
+                Log("[LiveReallocate] Invalid backup import or confirmation URL.");
+                return;
+            }
+
+            try
+            {
+                using var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+                if (!string.IsNullOrWhiteSpace(headerKey) && !string.IsNullOrWhiteSpace(headerValue))
+                {
+                    httpClient.DefaultRequestHeaders.Add(headerKey, headerValue);
+                }
+
+                using HttpResponseMessage response = httpClient.GetAsync(backupsUrl).GetAwaiter().GetResult();
+                if (!response.IsSuccessStatusCode)
+                {
+                    Log($"[LiveReallocate] Backup import download failed ({(int)response.StatusCode}).");
+                    return;
+                }
+
+                string body = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                LiveReallocationBackupBundle? bundle = JsonSerializer.Deserialize<LiveReallocationBackupBundle>(
+                    body,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                );
+                if (bundle == null || bundle.matchid <= 0 || bundle.backups.Count == 0)
+                {
+                    Log("[LiveReallocate] Backup import bundle is empty or invalid.");
+                    return;
+                }
+
+                var filesToWrite = new List<(string FileName, string Content)>();
+                string fileNamePattern = $"^matchzy_{bundle.matchid}_\\d+_round\\d+\\.json$";
+                foreach (LiveReallocationBackupFile backup in bundle.backups)
+                {
+                    string fileName = backup.fileName;
+                    if (
+                        string.IsNullOrWhiteSpace(fileName) ||
+                        fileName != Path.GetFileName(fileName) ||
+                        !Regex.IsMatch(fileName, fileNamePattern) ||
+                        string.IsNullOrWhiteSpace(backup.content)
+                    )
+                    {
+                        Log("[LiveReallocate] Backup import bundle contains an invalid file.");
+                        return;
+                    }
+
+                    Dictionary<string, string>? backupData = JsonSerializer.Deserialize<Dictionary<string, string>>(backup.content);
+                    if (backupData == null || !backupData.TryGetValue("matchid", out string? matchId) || matchId != bundle.matchid.ToString())
+                    {
+                        Log($"[LiveReallocate] Backup {fileName} belongs to a different match.");
+                        return;
+                    }
+                    filesToWrite.Add((fileName, backup.content));
+                }
+
+                string backupDirectory = Path.Combine(Server.GameDirectory, "csgo", "MatchZyDataBackup");
+                Directory.CreateDirectory(backupDirectory);
+                foreach ((string fileName, string content) in filesToWrite)
+                {
+                    File.WriteAllText(Path.Combine(backupDirectory, fileName), content);
+                }
+
+                string confirmation = JsonSerializer.Serialize(new { matchid = bundle.matchid, imported = filesToWrite.Count });
+                using StringContent confirmationContent = new(confirmation, System.Text.Encoding.UTF8, "application/json");
+                using HttpResponseMessage confirmationResponse = httpClient
+                    .PostAsync(confirmationUrl, confirmationContent)
+                    .GetAwaiter()
+                    .GetResult();
+                if (!confirmationResponse.IsSuccessStatusCode)
+                {
+                    Log($"[LiveReallocate] Backup import confirmation failed ({(int)confirmationResponse.StatusCode}).");
+                    return;
+                }
+
+                Log($"[LiveReallocate] Imported {filesToWrite.Count} round backups for match {bundle.matchid}.");
+            }
+            catch (Exception e)
+            {
+                Log($"[LiveReallocate] Backup import failed: {e.Message}");
+            }
         }
 
         public List<string> GetBackups(string matchID)
