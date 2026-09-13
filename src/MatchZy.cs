@@ -579,6 +579,14 @@ namespace MatchZy
                         StartPracticeMode();
                     }
 
+                    // A manual css_rmap keeps the live MatchZy state while CS2
+                    // reinitializes map cvars. Reapply the live phase config so
+                    // settings such as mp_autokick do not fall back to defaults.
+                    if (isMatchLive)
+                    {
+                        SetupLiveFlagsAndCfg();
+                    }
+
                     // For simulation mode in multi-map series (bo3/bo5, etc.),
                     // ensure bots are (re)spawned and the simulated ready flow
                     // is started again on each subsequent map.
