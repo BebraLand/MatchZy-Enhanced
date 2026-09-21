@@ -538,10 +538,10 @@ namespace MatchZy
             // This is done before starting warmup so that cvars like get5_remote_log_url are set properly to send the events
             ExecuteChangedConvars();
 
-            StartWarmup();
-
             isMatchSetup = true;
             advertSeriesEnded = false;
+
+            StartWarmup();
             
             // Auto-ready simulation helper: when enabled, spawn two bots (1 CT + 1 T) after warmup
             // has started so auto-ready/ready gating can be tested without a human joining.
