@@ -8,6 +8,8 @@ public partial class MatchZy
 {
     public static readonly PluginCapability<int> CurrentMapNumberCapability =
         new("matchzy:current_map_number:v1");
+    public static readonly PluginCapability<int> SeriesLengthCapability =
+        new("matchzy:series_length:v1");
     private static MatchZy? instance;
     private static bool capabilityRegistered;
     private bool advertSeriesEnded;
@@ -22,6 +24,8 @@ public partial class MatchZy
         {
             Capabilities.RegisterPluginCapability(CurrentMapNumberCapability,
                 () => instance?.GetCurrentMapNumber() ?? 0);
+            Capabilities.RegisterPluginCapability(SeriesLengthCapability,
+                () => instance?.GetSeriesLength() ?? 0);
             capabilityRegistered = true;
         }
     }
@@ -34,6 +38,9 @@ public partial class MatchZy
         return MapAdvertisementRules.Select(active, matchConfig.CurrentMapNumber,
             matchConfig.NumMaps, matchConfig.Maplist, Server.MapName);
     }
+
+    private int GetSeriesLength()
+        => GetCurrentMapNumber() > 0 ? matchConfig.NumMaps : 0;
 
     public override void Unload(bool hotReload)
     {
