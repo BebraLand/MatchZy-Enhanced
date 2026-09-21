@@ -2573,6 +2573,7 @@ namespace MatchZy
 
         private void ChangeMap(string mapName, float delay)
         {
+            advertMapChanging = true;
             Log($"[ChangeMap] Changing map to {mapName} with delay {delay}");
             AddTimer(delay, () =>
             {

@@ -291,6 +291,7 @@ namespace MatchZy
                 if (backupData.TryGetValue("match_config", out var matchConfigValue))
                 {
                     matchConfig = Newtonsoft.Json.JsonConvert.DeserializeObject<MatchConfig>(matchConfigValue)!;
+                    advertSeriesEnded = false;
                     SetupRoundBackupFile();
                 }
                 if (backupData.TryGetValue("team1", out var team1config))

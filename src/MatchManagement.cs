@@ -541,6 +541,7 @@ namespace MatchZy
             StartWarmup();
 
             isMatchSetup = true;
+            advertSeriesEnded = false;
             
             // Auto-ready simulation helper: when enabled, spawn two bots (1 CT + 1 T) after warmup
             // has started so auto-ready/ready gating can be tested without a human joining.
@@ -970,6 +971,7 @@ namespace MatchZy
 
         public void EndSeries(string? winnerName, int restartDelay, int t1score, int t2score)
         {
+            advertSeriesEnded = true;
             long matchId = liveMatchId;
             (int team1Score, int team2Score) = (matchzyTeam1.seriesScore, matchzyTeam2.seriesScore);
             Log($"[SeriesCheckpoint] SERIES END reached for match {matchId}. Final map score: {matchzyTeam1.teamName} {t1score} – {matchzyTeam2.teamName} {t2score}. Final series score: {matchzyTeam1.teamName} {team1Score} – {matchzyTeam2.teamName} {team2Score}.");

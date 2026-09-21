@@ -168,6 +168,7 @@ namespace MatchZy
 
         public override void Load(bool hotReload)
         {
+            StartMapAdvertisementCapability();
 
             LoadAdmins();
 
