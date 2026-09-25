@@ -10,6 +10,8 @@ public partial class MatchZy
         new("matchzy:current_map_number:v1");
     public static readonly PluginCapability<int> SeriesLengthCapability =
         new("matchzy:series_length:v1");
+    public static readonly PluginCapability<string> ChatPrefixCapability =
+        new("matchzy:chat_prefix:v1");
     private static MatchZy? instance;
     private static bool capabilityRegistered;
     private bool advertSeriesEnded;
@@ -26,6 +28,8 @@ public partial class MatchZy
                 () => instance?.GetCurrentMapNumber() ?? 0);
             Capabilities.RegisterPluginCapability(SeriesLengthCapability,
                 () => instance?.GetSeriesLength() ?? 0);
+            Capabilities.RegisterPluginCapability(ChatPrefixCapability,
+                () => instance?.chatPrefix ?? string.Empty);
             capabilityRegistered = true;
         }
     }
