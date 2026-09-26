@@ -587,6 +587,15 @@ namespace MatchZy
                         StartWarmup();
                     }
 
+                    // The load command starts warmup before changelevel. Only the map-start
+                    // callback confirms that players can join on the new map.
+                    string expectedMap = matchConfig.Maplist.ElementAtOrDefault(matchConfig.CurrentMapNumber) ?? "";
+                    if (string.Equals(Server.MapName, expectedMap, StringComparison.OrdinalIgnoreCase)
+                        || long.TryParse(expectedMap, out _))
+                    {
+                        tournamentMapReady.Value = "1";
+                    }
+
                     if (isPractice)
                     {
                         StartPracticeMode();

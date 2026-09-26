@@ -147,6 +147,7 @@ namespace MatchZy
         // Tournament Status ConVars
         public FakeConVar<string> tournamentStatus = new("matchzy_tournament_status", "Current status of the server (idle/loading/warmup/knife/playing/paused/halftime/postgame/error)", "idle");
         public FakeConVar<string> tournamentMatch = new("matchzy_tournament_match", "Match slug/identifier currently loaded on this server", "");
+        public FakeConVar<string> tournamentMapReady = new("matchzy_tournament_map_ready", "1 once the current match map has finished loading", "0");
         public FakeConVar<string> tournamentUpdated = new("matchzy_tournament_updated", "Unix timestamp of last tournament status update", "0");
         public FakeConVar<string> tournamentNextMatch = new("matchzy_tournament_next_match", "Next match slug/identifier queued for this server", "");
         public FakeConVar<string> tournamentGoLiveStatus = new("matchzy_tournament_go_live_status", "Status string published when match goes live. Always uses playing for API compatibility.", "playing");
