@@ -395,7 +395,6 @@ namespace MatchZy
             }
 
             // Update tournament status to loading with match ID
-            tournamentMapReady.Value = "0";
             UpdateTournamentStatus("loading", liveMatchId.ToString());
             JToken team1 = jsonDataObject["team1"]!;
             JToken team2 = jsonDataObject["team2"]!;
@@ -587,10 +586,6 @@ namespace MatchZy
             });
 
             Log($"[LoadMatchFromJSON] Success with matchid: {liveMatchId}!");
-            if (!willChangeMap)
-            {
-                tournamentMapReady.Value = "1";
-            }
             return true;
         }
 
