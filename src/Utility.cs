@@ -1282,6 +1282,7 @@ namespace MatchZy
                 readyAvailable = true;
                 isPaused = false;
                 isMatchSetup = false;
+                teamAssignmentPendingMapChange = false;
 
                 isWarmup = true;
                 isKnifeRound = false;
@@ -1551,7 +1552,7 @@ namespace MatchZy
                         // CS2 leaves an incoming player on whichever side they joined.
                         // Enforce the configured team (including Spectator) after the
                         // match config is loaded and map sides are resolved.
-                        if (team != CsTeam.None && player.Team != team)
+                        if (!teamAssignmentPendingMapChange && team != CsTeam.None && player.Team != team)
                         {
                             Log($"[UpdatePlayersMap] Assigning roster player {player.PlayerName} ({player.SteamID}) to {team}.");
                             SwitchPlayerTeam(player, team);
@@ -2574,6 +2575,7 @@ namespace MatchZy
         private void ChangeMap(string mapName, float delay)
         {
             advertMapChanging = true;
+            teamAssignmentPendingMapChange = true;
             Log($"[ChangeMap] Changing map to {mapName} with delay {delay}");
             AddTimer(delay, () =>
             {
@@ -4600,24 +4602,25 @@ namespace MatchZy
 
         public void SwitchPlayerTeam(CCSPlayerController player, CsTeam team)
         {
-            if (player.Team == team) return;
+            if (teamAssignmentPendingMapChange || team == CsTeam.None || player.Team == team) return;
 
             Server.NextFrame(() =>
             {
-                if (!player.IsValid) return;
+                if (!player.IsValid || teamAssignmentPendingMapChange) return;
+                // Several connect/team events can queue an assignment before CS2
+                // updates Team. Check again when the assignment actually runs.
+                CsTeam oldTeam = player.Team;
+                if (oldTeam == team) return;
 
-                if (team == CsTeam.Spectator)
+                if (team == CsTeam.Spectator || oldTeam == CsTeam.None || oldTeam == CsTeam.Spectator)
                 {
+                    Log($"[SwitchPlayerTeam] {player.PlayerName}: {oldTeam} -> {team} via ChangeTeam");
                     player.ChangeTeam(team);
                 }
                 else
                 {
+                    Log($"[SwitchPlayerTeam] {player.PlayerName}: {oldTeam} -> {team} via SwitchTeam");
                     player.SwitchTeam(team);
-                    var gameRules = GetGameRules();
-                    if (gameRules.WarmupPeriod)
-                    {
-                        player.Respawn();
-                    }
                 }
             });
         }
