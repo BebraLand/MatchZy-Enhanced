@@ -86,7 +86,6 @@ namespace MatchZy
         private string? simulationTargetMap = null;
 
         public bool mapReloadRequired = false;
-        private bool teamAssignmentPendingMapChange;
         public bool awaitingOperatorNextMap = false;
         public string pendingOperatorNextMap = "";
         public int pendingOperatorNextMapIndex = -1;
@@ -469,23 +468,6 @@ namespace MatchZy
                 return HookResult.Continue;
             });
 
-            RegisterEventHandler<EventPlayerSpawn>((@event, info) =>
-            {
-                CCSPlayerController? player = @event.Userid;
-                if (!isMatchSetup || !isWarmup || player == null || !player.IsValid || player.IsBot || player.IsHLTV)
-                    return HookResult.Continue;
-
-                // The pawn position can still change during the spawn event.
-                Server.NextFrame(() =>
-                {
-                    if (!player.IsValid) return;
-                    var pawn = player.PlayerPawn.Value;
-                    var origin = pawn?.IsValid == true ? pawn.AbsOrigin : null;
-                    Log($"[WarmupSpawn] {player.PlayerName} team={player.Team} connected={player.Connected} origin={(origin == null ? "missing" : $"({origin.X:0} {origin.Y:0} {origin.Z:0})")}");
-                });
-                return HookResult.Continue;
-            }, HookMode.Post);
-
             AddCommandListener("jointeam", (player, info) =>
             {
                 if (isMatchSetup && player != null && player.IsValid)
@@ -589,7 +571,6 @@ namespace MatchZy
                 {
                     if (!isMatchSetup)
                     {
-                        teamAssignmentPendingMapChange = false;
                         AutoStart();
                         return;
                     }
@@ -599,9 +580,6 @@ namespace MatchZy
                     // available, so connected roster players do not remain on the
                     // previous map's side until they manually switch teams.
                     SetMapSides();
-                    if (teamAssignmentPendingMapChange)
-                        Log($"[TeamAssignment] Map {mapName} is ready; applying roster teams.");
-                    teamAssignmentPendingMapChange = false;
                     UpdatePlayersMap();
 
                     if (isWarmup)
