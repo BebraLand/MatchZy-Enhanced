@@ -4600,11 +4600,13 @@ namespace MatchZy
 
         public void SwitchPlayerTeam(CCSPlayerController player, CsTeam team)
         {
-            if (player.Team == team) return;
+            if (team == CsTeam.None || player.Team == team) return;
 
             Server.NextFrame(() =>
             {
-                if (!player.IsValid) return;
+                // Team/connect events can queue the same assignment more than once.
+                // Recheck after scheduling so only the first callback can mutate the player.
+                if (!player.IsValid || player.Team == team) return;
 
                 if (team == CsTeam.Spectator)
                 {
@@ -4614,10 +4616,51 @@ namespace MatchZy
                 {
                     player.SwitchTeam(team);
                     var gameRules = GetGameRules();
-                    if (gameRules.WarmupPeriod)
+                    if (!gameRules.WarmupPeriod) return;
+
+                    var pawn = player.PlayerPawn.Value;
+                    if (pawn == null || !pawn.IsValid)
                     {
-                        player.Respawn();
+                        Log($"[TeamAssignment] Skipping warmup respawn for {player.PlayerName}: pawn is not ready after team switch.");
+                        return;
                     }
+
+                    // CS2 1.41.8.4 can update the controller's team before the pawn's.
+                    // Respawning while the pawn is still on team 0 selects no valid spawn.
+                    if (pawn.TeamNum != (byte)team)
+                    {
+                        Log($"[TeamAssignment] Syncing pawn team for {player.PlayerName}: controller={player.TeamNum}, pawn={pawn.TeamNum}, target={(int)team}, life={pawn.LifeState}.");
+                        if (player.IsBot)
+                        {
+                            Log($"[TeamAssignment] Skipping unsafe pawn-team sync and warmup respawn for bot {player.PlayerName}.");
+                            return;
+                        }
+
+                        try
+                        {
+                            // The game exposes the same CBaseEntity::ChangeTeam slot through
+                            // this gamedata offset; CSS 1.0.376 maps it for the active platform.
+                            VirtualFunction.CreateVoid<IntPtr, int>(
+                                pawn.Handle,
+                                GameData.GetOffset("CCSPlayerController_ChangeTeam"))(
+                                    pawn.Handle,
+                                    (int)team);
+                        }
+                        catch (Exception e)
+                        {
+                            Log($"[TeamAssignment] Pawn team sync failed for {player.PlayerName}; skipping forced respawn: {e.Message}");
+                            return;
+                        }
+                    }
+
+                    if (pawn.TeamNum != (byte)team)
+                    {
+                        Log($"[TeamAssignment] Pawn team still mismatches for {player.PlayerName}: controller={player.TeamNum}, pawn={pawn.TeamNum}, target={(int)team}; skipping forced respawn.");
+                        return;
+                    }
+
+                    Log($"[TeamAssignment] Warmup respawn {player.PlayerName}: controller={player.TeamNum}, pawn={pawn.TeamNum}, life={pawn.LifeState}.");
+                    player.Respawn();
                 }
             });
         }
